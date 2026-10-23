@@ -6,7 +6,11 @@
  * - Marca (link para o início), navegação principal (a partir de lg),
  *   botão "Seu pedido" com o total de peças (usePedido + totalDePecas, aria-live).
  * - Abaixo de lg: botão de menu (aria-expanded/aria-controls) que abre um painel
- *   com os links grandes e o WhatsApp. Fecha com Esc, ao navegar e trava a rolagem.
+ *   com os links grandes e o WhatsApp. Fecha com Esc, ao navegar (também pela
+ *   marca e pelo "Seu pedido" do topo) e quando a tela passa de lg (o tablet
+ *   que gira), e trava a rolagem enquanto aberto. Girando abaixo de lg, o
+ *   painel acompanha a nova altura do cabeçalho. O Tab roda só entre o botão
+ *   do menu e o painel, nos dois sentidos.
  * - O link da rota atual recebe aria-current="page" (usePathname). No painel
  *   do celular ele também ganha um sublinhado tracejado (não só a cor).
  * - Menu aberto: o resto da página (main, rodapé, barra do celular, faixa de
@@ -24,6 +28,9 @@ import { lerItens, totalDePecas, usePedido } from "../lib/pedido";
 import BotaoWhatsApp from "./BotaoWhatsApp";
 import Marca from "./Marca";
 import { itemAtivo, MENSAGEM_GERAL, navegacao, normalizarCaminho } from "./navegacao";
+
+/** A partir daqui (lg do Tailwind) o menu do celular some e a navegação fica no topo. */
+const TELA_GRANDE = "(min-width: 64rem)";
 
 /** O que fica inert enquanto o menu do celular está aberto (vem do app/layout.tsx). */
 const FORA_DO_MENU = "main, body footer, [data-barra-celular], [data-faixa-previa], .pular-conteudo";
@@ -84,6 +91,8 @@ export default function Cabecalho() {
     const raiz = document.documentElement;
     const antes = raiz.style.overflow;
     raiz.style.overflow = "hidden";
+    // O painel escondido guarda a rolagem da última vez: volta ao topo, para o primeiro link aparecer.
+    if (painelRef.current) painelRef.current.scrollTop = 0;
     painelRef.current?.querySelector<HTMLElement>("a, button")?.focus({ preventScroll: true });
     // O resto da página sai do alcance do teclado e do leitor de tela.
     const foraDoMenu = Array.from(document.querySelectorAll<HTMLElement>(FORA_DO_MENU)).filter((el) => !el.inert);
@@ -97,12 +106,24 @@ export default function Cabecalho() {
       }
     };
     document.addEventListener("keydown", aoTeclar);
+    // A tela passou de lg com o menu aberto (tablet girado): o painel e o botão
+    // somem, então o menu fecha e a página volta a rolar.
+    const telaGrande = window.matchMedia?.(TELA_GRANDE);
+    const aoMudarTela = (e: MediaQueryListEvent) => {
+      if (e.matches) setAberto(false);
+    };
+    telaGrande?.addEventListener?.("change", aoMudarTela);
+    // Abaixo de lg, girar o celular muda a altura do cabeçalho (e da faixa de prévia): o painel acompanha.
+    const aoRedimensionar = () => setTopoPainel(cabecalhoRef.current?.getBoundingClientRect().bottom ?? 0);
+    window.addEventListener("resize", aoRedimensionar);
     return () => {
       raiz.style.overflow = antes;
       foraDoMenu.forEach((el) => {
         el.inert = false;
       });
       document.removeEventListener("keydown", aoTeclar);
+      telaGrande?.removeEventListener?.("change", aoMudarTela);
+      window.removeEventListener("resize", aoRedimensionar);
     };
   }, [aberto]);
 
@@ -111,7 +132,10 @@ export default function Cabecalho() {
     setAberto((a) => !a);
   };
 
-  // Tab no último item do painel volta para o botão do menu.
+  // Tab no último item do painel volta para o botão do menu; Shift+Tab no
+  // botão (com o menu aberto) vai para o último item. Do botão, o Tab entra
+  // no primeiro item e o Shift+Tab no primeiro item volta ao botão sozinhos
+  // (o painel vem logo depois do cabeçalho), então o foco não sai do menu.
   const prenderFoco = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== "Tab" || e.shiftKey) return;
     const focaveis = painelRef.current?.querySelectorAll<HTMLElement>("a, button");
@@ -120,6 +144,14 @@ export default function Cabecalho() {
       e.preventDefault();
       botaoMenuRef.current?.focus({ preventScroll: true });
     }
+  };
+  const voltarAoFimDoPainel = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!aberto || e.key !== "Tab" || !e.shiftKey) return;
+    const focaveis = painelRef.current?.querySelectorAll<HTMLElement>("a, button");
+    if (!focaveis?.length) return;
+    e.preventDefault();
+    // Sem preventScroll: em tela baixa o painel rola até o item (a página não se move, o painel é fixo).
+    focaveis[focaveis.length - 1].focus();
   };
 
   return (
@@ -134,7 +166,7 @@ export default function Cabecalho() {
         }`}
       >
         <div className="conteudo flex h-[var(--altura-cabecalho)] items-center justify-between gap-3">
-          <Link href="/" className="-ml-1 min-w-0 rounded-[var(--raio)] px-1 py-1 no-underline" aria-label="Republicasul, página inicial">
+          <Link href="/" onClick={() => setAberto(false)} className="-ml-1 min-w-0 rounded-[var(--raio)] px-1 py-1 no-underline" aria-label="Republicasul, página inicial">
             <Marca />
           </Link>
 
@@ -166,6 +198,7 @@ export default function Cabecalho() {
           <div className="flex items-center gap-2">
             <Link
               href="/pedido/"
+              onClick={() => setAberto(false)}
               aria-current={caminho?.replace(/\/+$/, "") === "/pedido" ? "page" : undefined}
               className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--raio)] border border-ouro/55 px-2.5 font-rotulo text-[0.95rem] font-semibold uppercase tracking-[0.08em] text-creme no-underline transition-colors hover:border-ouro hover:bg-white/5 sm:px-3"
             >
@@ -188,6 +221,7 @@ export default function Cabecalho() {
               ref={botaoMenuRef}
               type="button"
               onClick={alternarMenu}
+              onKeyDown={voltarAoFimDoPainel}
               aria-expanded={aberto}
               aria-controls="menu-celular"
               className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--raio)] border border-creme/20 text-creme transition-colors hover:bg-white/5 lg:hidden"

@@ -211,6 +211,87 @@ describe("Cabecalho", () => {
     }
   });
 
+  it("com o menu aberto, o Tab roda entre o botão e o painel nos dois sentidos", () => {
+    render(<Cabecalho />);
+    const botao = screen.getByRole("button", { name: "Abrir menu" });
+    // Fechado, o Shift+Tab no botão segue o caminho normal.
+    expect(fireEvent.keyDown(botao, { key: "Tab", shiftKey: true })).toBe(true);
+    fireEvent.click(botao);
+    const focaveis = Array.from(document.getElementById("menu-celular")!.querySelectorAll<HTMLElement>("a, button"));
+    const ultimo = focaveis[focaveis.length - 1];
+    expect(focaveis[0]).toHaveFocus();
+    // Shift+Tab no botão vai para o último item do painel (não para o "Seu pedido" nem para a marca).
+    act(() => botao.focus());
+    expect(fireEvent.keyDown(botao, { key: "Tab", shiftKey: true })).toBe(false);
+    expect(ultimo).toHaveFocus();
+    // Tab no último item volta para o botão.
+    expect(fireEvent.keyDown(ultimo, { key: "Tab" })).toBe(false);
+    expect(botao).toHaveFocus();
+  });
+
+  it("o menu aberto fecha e solta a página quando a tela passa de lg", () => {
+    const ouvintes: Array<(e: { matches: boolean }) => void> = [];
+    const original = window.matchMedia;
+    window.matchMedia = ((media: string) => ({
+      matches: false,
+      media,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: (_: string, f: (e: { matches: boolean }) => void) => ouvintes.push(f),
+      removeEventListener: (_: string, f: (e: { matches: boolean }) => void) => {
+        const i = ouvintes.indexOf(f);
+        if (i >= 0) ouvintes.splice(i, 1);
+      },
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    const main = document.createElement("main");
+    document.body.append(main);
+    try {
+      render(<Cabecalho />);
+      const botao = screen.getByRole("button", { name: "Abrir menu" });
+      fireEvent.click(botao);
+      expect(main.inert).toBe(true);
+      expect(document.documentElement.style.overflow).toBe("hidden");
+      act(() => ouvintes.forEach((f) => f({ matches: true })));
+      expect(botao).toHaveAttribute("aria-expanded", "false");
+      expect(main.inert).toBe(false);
+      expect(document.documentElement.style.overflow).toBe("");
+      expect(ouvintes).toHaveLength(0);
+    } finally {
+      window.matchMedia = original;
+      main.remove();
+    }
+  });
+
+  it("a marca e o \"Seu pedido\" do topo fecham o menu aberto", () => {
+    render(<Cabecalho />);
+    const botao = screen.getByRole("button", { name: "Abrir menu" });
+    for (const nome of [/Republicasul, página inicial/, /Seu pedido/]) {
+      fireEvent.click(botao);
+      expect(botao).toHaveAttribute("aria-expanded", "true");
+      const link = screen.getByRole("link", { name: nome });
+      link.addEventListener("click", (e) => e.preventDefault(), { once: true });
+      fireEvent.click(link);
+      expect(botao).toHaveAttribute("aria-expanded", "false");
+    }
+  });
+
+  it("com o menu aberto, o painel acompanha a altura do cabeçalho quando a tela gira", () => {
+    render(<Cabecalho />);
+    const cabecalho = document.querySelector("header")!;
+    let fundo = 116;
+    cabecalho.getBoundingClientRect = () => ({ bottom: fundo }) as DOMRect;
+    fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
+    const painel = document.getElementById("menu-celular")!;
+    expect(painel.style.top).toBe("116px");
+    fundo = 100;
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(painel.style.top).toBe("100px");
+  });
+
   it("o leitor de tela ouve o total só quando ele muda, não ao abrir a página", () => {
     adicionarItem({ produto: "pala", escolhas: {}, quantidade: 2 });
     render(<Cabecalho />);

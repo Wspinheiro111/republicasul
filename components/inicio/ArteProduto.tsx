@@ -1,12 +1,15 @@
+"use client";
+
 /*
  * ArteProduto: a imagem do produto num cartão. Com foto real (produto.fotos),
  * mostra a primeira foto (next/image sem otimização, pois o site é export
- * estático). Sem foto, desenha o lenço com LencoArte.
+ * estático). Sem foto, ou se a foto não carregar, desenha o lenço com LencoArte.
  *
  *   <ArteProduto produto={p} cores={coresDasEscolhas(p, escolhasPadrao(p))} sizes="(min-width: 1024px) 30vw, 50vw" />
  */
 
 import Image from "next/image";
+import { useState } from "react";
 import type { Produto } from "../../content/catalogo";
 import LencoArte from "../LencoArte";
 
@@ -20,11 +23,12 @@ export type ArteProdutoProps = {
 };
 
 export default function ArteProduto({ produto, cores, sizes = "(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 40vw", className }: ArteProdutoProps) {
+  const [falhou, setFalhou] = useState(false);
   const foto = produto.fotos[0];
-  if (foto) {
+  if (foto && !falhou) {
     return (
       <div className={`relative aspect-square overflow-hidden rounded-[var(--raio-pequeno)] ${className ?? ""}`}>
-        <Image src={foto} alt={produto.nome} fill unoptimized sizes={sizes} className="object-cover" />
+        <Image src={foto} alt={produto.nome} fill unoptimized sizes={sizes} className="object-cover" onError={() => setFalhou(true)} />
       </div>
     );
   }

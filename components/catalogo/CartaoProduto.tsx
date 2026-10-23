@@ -7,8 +7,9 @@
  *   <CartaoProduto produto={produto} mostrarCategoria={false} prioridade />
  *
  * - Foto real (next/image, unoptimized por ser export estático) quando
- *   produto.fotos tiver itens; senão o desenho do LencoArte, nas cores da
- *   escolha padrão (exatamente o que o botão rápido põe na lista).
+ *   produto.fotos tiver itens; senão, ou se a foto não carregar, o desenho do
+ *   LencoArte, nas cores da escolha padrão (exatamente o que o botão rápido
+ *   põe na lista).
  * - Nome com link para o produto (o cartão inteiro é clicável), resumo,
  *   "Valor pelo WhatsApp" ou o preço em reais quando confirmado.
  * - Botão rápido "Adicionar ao pedido" com as escolhas padrão e quantidade 1.
@@ -55,6 +56,7 @@ export default function CartaoProduto({ produto, mostrarCategoria = true, priori
   const idNome = `cartao-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const [vezes, setVezes] = useState(0);
   const [recente, setRecente] = useState(false);
+  const [fotoFalhou, setFotoFalhou] = useState(false);
   const categoria = categoriaPorSlug(produto.categoria);
   const foto = produto.fotos[0];
   const href = caminhoProduto(produto.slug);
@@ -84,7 +86,7 @@ export default function CartaoProduto({ produto, mostrarCategoria = true, priori
       data-produto={produto.slug}
     >
       <div className="secao-escura trama relative aspect-square overflow-hidden">
-        {foto ? (
+        {foto && !fotoFalhou ? (
           <Image
             src={foto}
             alt={`Foto do ${produto.nome}`}
@@ -93,6 +95,7 @@ export default function CartaoProduto({ produto, mostrarCategoria = true, priori
             priority={prioridade}
             sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
             className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            onError={() => setFotoFalhou(true)}
           />
         ) : (
           <div className="absolute inset-[8%] transition-transform duration-500 ease-out group-hover:-translate-y-1 group-hover:scale-[1.03]">

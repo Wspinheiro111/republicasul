@@ -401,7 +401,15 @@ describe("Imagem do produto", () => {
     render(<ArteProduto produto={comFoto} />);
     const foto = screen.getByRole("img", { name: base.nome });
     expect(foto.tagName.toLowerCase()).toBe("img");
-    expect(foto.getAttribute("src")).toBe("/fotos/maragato.jpg");
+    // Com onError, o next/image regrava o src ao montar e o atributo fica absoluto: compara só o caminho.
+    expect(new URL(foto.getAttribute("src")!, window.location.href).pathname).toBe("/fotos/maragato.jpg");
     expect(screen.queryByRole("img", { name: /Desenho/ })).toBeNull();
+  });
+
+  it("se a foto não carregar, volta para o desenho", () => {
+    const comFoto: Produto = { ...base, fotos: ["/fotos/que-nao-existe.jpg"] };
+    render(<ArteProduto produto={comFoto} />);
+    fireEvent.error(screen.getByRole("img", { name: base.nome }));
+    expect(screen.getByRole("img", { name: "Desenho do lenço tradicional maragato" }).tagName.toLowerCase()).toBe("svg");
   });
 });

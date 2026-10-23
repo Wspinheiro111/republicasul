@@ -378,8 +378,18 @@ describe("CartaoProduto", () => {
     render(<CartaoProduto produto={comFoto} />);
     const foto = screen.getByRole("img", { name: `Foto do ${maragato.nome}` });
     expect(foto.tagName.toLowerCase()).toBe("img");
-    expect(foto.getAttribute("src")).toBe("/fotos/maragato-1.jpg");
+    // Com onError, o next/image regrava o src ao montar (para não perder um erro de
+    // antes da hidratação) e o atributo fica absoluto: compara só o caminho.
+    expect(new URL(foto.getAttribute("src")!, window.location.href).pathname).toBe("/fotos/maragato-1.jpg");
     expect(screen.queryByRole("img", { name: /Desenho ilustrativo/ })).toBeNull();
+  });
+
+  it("se a foto não carregar, volta para o desenho", () => {
+    const comFoto: Produto = { ...maragato, fotos: ["/fotos/que-nao-existe.jpg"] };
+    render(<CartaoProduto produto={comFoto} />);
+    fireEvent.error(screen.getByRole("img", { name: `Foto do ${maragato.nome}` }));
+    expect(screen.queryByRole("img", { name: `Foto do ${maragato.nome}` })).toBeNull();
+    expect(screen.getByRole("img", { name: /Desenho ilustrativo/ })).toBeInTheDocument();
   });
 });
 
