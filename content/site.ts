@@ -22,7 +22,7 @@ export const empresa = {
 export const contato = {
   // Número comercial com DDI e DDD, só dígitos (ex.: "5551999999999").
   // Vazio: o link abre o WhatsApp para o cliente escolher o contato.
-  whatsapp: "",
+  whatsapp: "5551994868888", // confirmado pelo Will em 23/10/2026: (51) 99486-8888
   // Número para lojistas/atacado; vazio usa o mesmo do varejo.
   whatsappLojistas: "",
   telefone: "",
