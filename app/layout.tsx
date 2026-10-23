@@ -4,6 +4,7 @@ import BarraCelular from "../components/BarraCelular";
 import Cabecalho from "../components/Cabecalho";
 import FaixaPrevia from "../components/FaixaPrevia";
 import Rodape from "../components/Rodape";
+import { IMAGEM_COMPARTILHAMENTO } from "../components/conteudo/seo";
 import { empresa, links, PREVIA, SITE_URL } from "../content/site";
 import "./globals.css";
 
@@ -50,7 +51,11 @@ export const metadata: Metadata = {
     siteName: empresa.nome,
     title: "Republicasul | Lenços e palas gaúchos tramados artesanalmente",
     description: descricao,
+    // Imagem padrão (public/og.png, feita por scripts/gerar-og.mjs). Página que
+    // define o próprio openGraph precisa repetir a imagem (o Next não mescla).
+    images: [IMAGEM_COMPARTILHAMENTO],
   },
+  twitter: { card: "summary_large_image" },
   robots: { index: true, follow: true },
   formatDetection: { telephone: false },
 };

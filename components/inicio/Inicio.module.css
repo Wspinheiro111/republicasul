@@ -1,0 +1,56 @@
+/*
+ * Estilos próprios da página inicial (o resto vem das classes da base e do Tailwind).
+ */
+
+/* "tramado" no título do herói: uma costura dourada que se faz sozinha uma vez. */
+.costurado {
+  position: relative;
+  white-space: nowrap;
+}
+.ponto {
+  position: absolute;
+  left: 0.02em;
+  right: 0.02em;
+  bottom: 0.02em;
+  height: 3px;
+  background-image: linear-gradient(90deg, var(--ouro) 0 10px, transparent 10px 17px);
+  background-size: 17px 3px;
+  background-repeat: repeat-x;
+  animation: costurar 1.3s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
+}
+@keyframes costurar {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* Luz quente atrás do lenço do herói. */
+.luz {
+  background: radial-gradient(closest-side, rgb(201 161 74 / 0.16), rgb(201 161 74 / 0.05) 55%, transparent);
+}
+
+/* Faixa final em vermelho maragato, com a trama em fios claros. */
+.maragato {
+  background-color: var(--maragato);
+  color: var(--creme);
+  --foco: var(--creme);
+  --fio: rgb(255 255 255 / 0.05);
+  --fio-forte: rgb(255 255 255 / 0.07);
+}
+
+/* Rolagem lateral das categorias no celular: barra fina e discreta. */
+.trilho {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--tinta) 30%, transparent) transparent;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ponto {
+    animation: none;
+  }
+}

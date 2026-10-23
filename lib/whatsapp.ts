@@ -53,9 +53,11 @@ function linhasCliente(cliente?: DadosCliente): string[] {
 }
 
 // Pedido direto de um produto (botão "Pedir no WhatsApp" na página do produto).
+// O pala não é lenço: a mensagem fala "este pala".
 export function mensagemProduto(item: ItemPedido): string {
+  const peca = produtoPorSlug(item.produto)?.padrao === "pala" ? "este pala" : "este lenço";
   return [
-    "Olá, Republicasul! Vi no site e quero este lenço:",
+    `Olá, Republicasul! Vi no site e quero ${peca}:`,
     "",
     ...linhaItem(item, 1),
     "",

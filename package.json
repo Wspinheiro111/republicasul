@@ -8,8 +8,10 @@
     "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "check:links": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-links.mjs",
     "test:e2e": "playwright test",
-    "serve": "node scripts/serve-out.mjs"
+    "serve": "node scripts/serve-out.mjs",
+    "og": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/gerar-og.mjs"
   },
   "dependencies": {
     "framer-motion": "^12.23.24",

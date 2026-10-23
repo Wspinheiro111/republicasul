@@ -469,6 +469,10 @@ export type LencoCicloProps = {
  * Alterna as variações (ex.: maragato, chimango, azul royal, verde esmeralda)
  * com balanço suave. Tem botão "Pausar animação" (WCAG 2.2.2) e, com
  * "reduzir movimento", fica parado na primeira variação.
+ *
+ * Acessibilidade (padrão de carrossel da WAI-ARIA): o botão troca o rótulo
+ * ("Pausar"/"Retomar") e por isso não usa aria-pressed; o nome da cor tem
+ * aria-live "off" enquanto troca sozinho e "polite" quando está parado.
  */
 export function LencoCiclo({
   variacoes,
@@ -498,14 +502,15 @@ export function LencoCiclo({
       {mostrarNome && (
         <figcaption className="mt-3 flex items-baseline justify-center gap-2 text-center">
           {antesDoNome}
-          <span className="font-titulo text-xl font-semibold">{atual.nome}</span>
+          <span aria-live={parado ? "polite" : "off"} aria-atomic="true" className="font-titulo text-xl font-semibold">
+            {atual.nome}
+          </span>
         </figcaption>
       )}
       {!reduzir && variacoes.length > 1 && (
         <button
           type="button"
           onClick={() => setPausado((p) => !p)}
-          aria-pressed={pausado}
           className="absolute right-0 top-0 inline-flex h-11 w-11 items-center justify-center rounded-[var(--raio)] border border-current/25 opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100"
         >
           <span className="sr-only">{pausado ? "Retomar animação do lenço" : "Pausar animação do lenço"}</span>

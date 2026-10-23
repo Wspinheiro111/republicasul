@@ -8,7 +8,8 @@
  *
  * Props
  * - tom?: "escuro" (padrão: dourado sobre couro) | "claro" (tinta/dourado queimado sobre creme)
- * - className?: defina a largura (w-24, w-32...); a altura acompanha.
+ * - className?: defina a largura (w-24, w-32...); a altura acompanha. Pode
+ *   trazer a posição (absolute, fixed, sticky); sem ela, o selo é relative.
  * - girando?: gira devagar (CSS); para com "reduzir movimento".
  * O texto do anel é decorativo; o selo inteiro tem role="img" com aria-label.
  */
@@ -30,9 +31,12 @@ export default function Selo({ tom = "escuro", className, girando = false }: Sel
   const fundo = claro ? "var(--creme)" : "var(--couro)";
   const linha = claro ? "var(--ouro-escuro)" : "var(--ouro)";
   const texto = claro ? "var(--tinta)" : "var(--creme)";
+  // "relative" só quando o className não posiciona: no CSS do Tailwind o
+  // relative vem depois e ganharia de um absolute passado por fora.
+  const posicao = /(^|\s)(absolute|fixed|sticky)(\s|$)/.test(className ?? "") ? "" : "relative ";
 
   return (
-    <div role="img" aria-label="Selo Trama Republicasul, tramado artesanalmente" className={`relative aspect-square ${className ?? ""}`}>
+    <div role="img" aria-label="Selo Trama Republicasul, tramado artesanalmente" className={`${posicao}aspect-square ${className ?? ""}`}>
       <svg viewBox="0 0 200 200" className="absolute inset-0 h-full w-full" aria-hidden="true" focusable="false">
         <defs>
           <path id={`${id}-circulo`} d="M100 100 m-71 0 a71 71 0 1 1 142 0 a71 71 0 1 1 -142 0" />

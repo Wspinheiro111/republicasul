@@ -7,9 +7,10 @@ vi.mock("next/navigation", () => ({
 
 import BotaoWhatsApp from "../components/BotaoWhatsApp";
 import Cabecalho from "../components/Cabecalho";
-import LencoArte from "../components/LencoArte";
+import LencoArte, { LencoCiclo } from "../components/LencoArte";
 import Quantidade from "../components/Quantidade";
 import SeletorOpcoes from "../components/SeletorOpcoes";
+import Selo from "../components/Selo";
 import Trilha from "../components/Trilha";
 import { escolhasPadrao, produtoPorSlug } from "../content/catalogo";
 import { __reiniciarPedido, adicionarItem } from "../lib/pedido";
@@ -64,6 +65,34 @@ describe("LencoArte", () => {
     const b = render(<LencoArte padrao="liso" cores={["#1f3fa6"]} titulo="A" />).container.innerHTML;
     const semIds = (s: string) => s.replace(/lenco[^"'#)\s-]*-/g, "ID-");
     expect(semIds(a)).toBe(semIds(b));
+  });
+});
+
+describe("LencoCiclo", () => {
+  const variacoes = [
+    { nome: "Maragato", cores: ["#b3121b"] },
+    { nome: "Chimango", cores: ["#f3efe6"] },
+  ];
+
+  it("o botão troca o rótulo (sem aria-pressed) e o nome só é anunciado parado", () => {
+    render(<LencoCiclo variacoes={variacoes} />);
+    const botao = screen.getByRole("button", { name: "Pausar animação do lenço" });
+    expect(botao).not.toHaveAttribute("aria-pressed");
+    expect(screen.getByText("Maragato")).toHaveAttribute("aria-live", "off");
+    fireEvent.click(botao);
+    expect(screen.getByRole("button", { name: "Retomar animação do lenço" })).not.toHaveAttribute("aria-pressed");
+    expect(screen.getByText("Maragato")).toHaveAttribute("aria-live", "polite");
+  });
+});
+
+describe("Selo", () => {
+  it("é relative por padrão e aceita ser posicionado pelo className", () => {
+    const { rerender } = render(<Selo className="w-24" />);
+    const selo = () => screen.getByRole("img", { name: /Selo Trama Republicasul/ });
+    expect(selo()).toHaveClass("relative", "w-24");
+    rerender(<Selo className="absolute -right-2 top-2 w-24" />);
+    expect(selo()).toHaveClass("absolute");
+    expect(selo()).not.toHaveClass("relative");
   });
 });
 

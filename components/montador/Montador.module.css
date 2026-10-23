@@ -1,0 +1,38 @@
+/*
+ * Palco do montador: couro com a trama, luz quente de lampião vindo de cima
+ * e sombra no chão. As cores vêm dos tokens de app/globals.css; os fios usam
+ * --fio e --fio-forte, que a classe .secao-escura define.
+ */
+
+.palco {
+  background-color: var(--couro);
+  background-image:
+    radial-gradient(70% 52% at 50% 26%, rgb(255 189 112 / 0.16), transparent 72%),
+    radial-gradient(110% 70% at 50% 115%, rgb(0 0 0 / 0.5), transparent 62%),
+    repeating-linear-gradient(0deg, var(--fio-forte) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, var(--fio) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(45deg, var(--fio) 0 1px, transparent 1px 9px);
+}
+
+/* Reflexo da cor do lenço no fundo (acompanha a troca de cor). */
+.reflexo {
+  background: radial-gradient(closest-side, currentColor, transparent);
+  opacity: 0.2;
+  filter: blur(6px);
+  transition: color 0.7s ease;
+}
+
+/* Sombra no chão, embaixo do lenço. */
+.chao {
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.55), transparent);
+}
+
+/*
+ * No celular o palco fica grudado no topo enquanto a pessoa escolhe. O que
+ * recebe foco no painel desce o suficiente para não ficar escondido atrás dele.
+ */
+@media (max-width: 1023.98px) {
+  .painel :is(input, button, a, textarea, select, [tabindex]) {
+    scroll-margin-top: calc(var(--altura-cabecalho) + 12rem);
+  }
+}
