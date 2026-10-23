@@ -1,0 +1,312 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { redirecionamentosLegados } from "../content/site";
+
+// Testes de navegação sobre o export estático (out/). Rode `npm run build` antes:
+// o webServer do playwright.config.ts só serve a pasta out/.
+
+const raiz = process.cwd();
+
+/** Caminhos do sitemap gerado no build ("/", "/catalogo/", ...). */
+function rotasDoSitemap(): string[] {
+  let xml: string;
+  try {
+    xml = readFileSync(join(raiz, "out", "sitemap.xml"), "utf8");
+  } catch {
+    throw new Error("out/sitemap.xml não encontrado. Rode `npm run build` antes dos testes e2e.");
+  }
+  return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname);
+}
+
+// O /pedido/ fica fora do sitemap (noindex), mas é página do site e entra na varredura.
+const ROTAS = [...rotasDoSitemap(), "/pedido/"];
+
+/** Nada sai para a internet: o site não depende de terceiros para abrir. */
+async function soLocal(page: Page) {
+  await page.route(/^https?:\/\/(?!localhost(:\d+)?\/)/, (route) => route.abort());
+}
+
+function vigiarErros(page: Page): string[] {
+  const erros: string[] = [];
+  page.on("pageerror", (erro) => erros.push(`pageerror: ${erro.message}`));
+  page.on("console", (msg) => {
+    if (msg.type() === "error") erros.push(`console: ${msg.text()}`);
+  });
+  return erros;
+}
+
+async function excessoHorizontal(page: Page): Promise<number> {
+  return page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+}
+
+/** Desce a página inteira (sem rolagem suave), para as revelações rodarem. */
+async function rolarAteOFim(page: Page) {
+  const altura = await page.evaluate(() => document.documentElement.scrollHeight);
+  const passo = Math.round((page.viewportSize()?.height ?? 800) * 0.8);
+  for (let y = 0; y < altura; y += passo) {
+    await page.evaluate((valor) => window.scrollTo({ top: valor, behavior: "instant" }), y);
+    await page.waitForTimeout(120);
+  }
+}
+
+/** Abre e espera o React assumir a página (hidratação) antes de interagir. */
+async function abrir(page: Page, caminho: string) {
+  const resposta = await page.goto(caminho);
+  await page.waitForLoadState("networkidle");
+  return resposta;
+}
+
+/**
+ * Escolhe uma opção como a pessoa faz: tocando no rótulo. Os radios das
+ * opções são visualmente escondidos (sr-only) e o rótulo é o que aparece.
+ */
+async function escolher(radio: Locator) {
+  await radio.locator("xpath=ancestor::label[1]").click();
+  await expect(radio).toBeChecked();
+}
+
+test.beforeEach(async ({ page }) => soLocal(page));
+
+test.describe("todas as rotas do sitemap", () => {
+  test("o sitemap lista as páginas, as linhas e os produtos", () => {
+    expect(ROTAS).toEqual(expect.arrayContaining(["/", "/catalogo/", "/montador/", "/produto/lenco-carijo-duas-cores/"]));
+    expect(ROTAS.length).toBeGreaterThan(10);
+  });
+
+  for (const rota of ROTAS) {
+    test(`${rota} abre sem erro de console e sem rolagem horizontal`, async ({ page }) => {
+      const erros = vigiarErros(page);
+      const resposta = await abrir(page, rota);
+      expect(resposta?.status(), "status HTTP").toBe(200);
+      await expect(page.locator("h1")).toHaveCount(1);
+      await expect(page.locator("h1")).toBeVisible();
+      expect(await excessoHorizontal(page), "rolagem horizontal no topo").toBeLessThanOrEqual(0);
+      await rolarAteOFim(page);
+      expect(await excessoHorizontal(page), "rolagem horizontal depois de rolar").toBeLessThanOrEqual(0);
+      expect(erros).toEqual([]);
+    });
+  }
+});
+
+test("caminho inexistente mostra a página 404 do site", async ({ page }) => {
+  const resposta = await page.goto("/caminho-que-nao-existe/");
+  expect(resposta?.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Esse caminho não leva a lugar nenhum");
+  await expect(page.getByRole("link", { name: "Ver os lenços" })).toBeVisible();
+});
+
+test("produto carijó duas cores: escolhe as cores, adiciona e o pedido leva tudo para o WhatsApp", async ({ page }) => {
+  const erros = vigiarErros(page);
+  await abrir(page, "/produto/lenco-carijo-duas-cores/");
+
+  const painel = page.getByRole("region", { name: "Lenço carijó duas cores" });
+  await escolher(painel.getByRole("group", { name: /Primeira cor/ }).getByRole("radio", { name: "Azul" }));
+  await escolher(painel.getByRole("group", { name: /Segunda cor/ }).getByRole("radio", { name: "Branco" }));
+  await escolher(painel.getByRole("group", { name: /Medida/ }).getByRole("radio", { name: "Medida especial" }));
+
+  // O React registrou as escolhas: legenda, resumo e URL acompanham.
+  await expect(painel.getByTestId("escolha-cor-1")).toHaveText("Azul");
+  await expect(painel.getByTestId("escolha-cor-2")).toHaveText("Branco");
+  await expect(painel.getByTestId("resumo-escolha")).toContainText("Medida: Medida especial");
+  await expect(page).toHaveURL(/cor-1=azul/);
+  await expect(page).toHaveURL(/cor-2=branco/);
+
+  await painel.getByRole("button", { name: "Adicionar ao pedido", exact: true }).click();
+  await expect(painel.getByRole("status")).toContainText("Adicionado ao seu pedido");
+  await painel.getByRole("link", { name: "Ver seu pedido" }).click();
+
+  await expect(page).toHaveURL(/\/pedido\/$/);
+  const enviar = page.getByRole("link", { name: /Enviar pedido pelo WhatsApp/ });
+  await expect(enviar).toBeVisible();
+  await expect(enviar).toHaveAttribute("target", "_blank");
+  const href = (await enviar.getAttribute("href")) ?? "";
+  expect(href.startsWith("https://wa.me/")).toBe(true);
+  const mensagem = decodeURIComponent(href);
+  expect(mensagem).toContain("Lenço carijó duas cores");
+  expect(mensagem).toContain("Primeira cor: Azul");
+  expect(mensagem).toContain("Segunda cor: Branco");
+  expect(mensagem).toContain("Medida: Medida especial");
+  expect(mensagem).toContain("Quantidade: 1");
+  expect(erros).toEqual([]);
+});
+
+test("montador gera o link com a combinação e reabre igual", async ({ page, context }) => {
+  // Guarda o que o botão copiaria, sem depender da permissão da área de transferência.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (texto: string) => {
+          (window as unknown as { __copiado?: string }).__copiado = texto;
+        },
+      },
+    });
+  });
+  const erros = vigiarErros(page);
+  await abrir(page, "/montador/");
+
+  await escolher(page.getByRole("radio", { name: "Carijó uma cor" }));
+  await escolher(page.getByRole("group", { name: /Cor do xadrez/ }).getByRole("radio", { name: "Verde" }));
+  await escolher(page.getByRole("group", { name: /Medida/ }).getByRole("radio", { name: "Medida especial" }));
+
+  await expect(page).toHaveURL(/\/montador\/\?modelo=carijo-uma-cor&cor=verde&medida=especial$/);
+
+  await page.getByRole("button", { name: "Copiar link desta combinação" }).click();
+  await expect(page.getByRole("button", { name: "Link copiado" })).toBeVisible();
+  const copiado = await page.evaluate(() => (window as unknown as { __copiado?: string }).__copiado ?? "");
+  const link = new URL(copiado);
+  expect(link.pathname).toBe("/montador/");
+  expect(Object.fromEntries(link.searchParams)).toEqual({ modelo: "carijo-uma-cor", cor: "verde", medida: "especial" });
+  expect(erros).toEqual([]);
+
+  // Outra aba, só com o link: volta a mesma combinação.
+  const outra = await context.newPage();
+  await soLocal(outra);
+  const errosOutra = vigiarErros(outra);
+  await abrir(outra, `${link.pathname}${link.search}`);
+  await expect(outra.getByRole("radio", { name: "Carijó uma cor" })).toBeChecked();
+  await expect(outra.getByRole("group", { name: /Cor do xadrez/ }).getByRole("radio", { name: "Verde" })).toBeChecked();
+  await expect(outra.getByRole("group", { name: /Medida/ }).getByRole("radio", { name: "Medida especial" })).toBeChecked();
+  const palco = outra.getByRole("region", { name: "Prévia do lenço" });
+  await expect(palco).toContainText("Lenço carijó uma cor");
+  await expect(palco).toContainText("Verde");
+  await expect(outra).toHaveURL(/modelo=carijo-uma-cor&cor=verde&medida=especial$/);
+  expect(errosOutra).toEqual([]);
+});
+
+test("as URLs antigas .php estão no vercel.json e levam a páginas que existem", async ({ page }) => {
+  const vercel = JSON.parse(readFileSync(join(raiz, "vercel.json"), "utf8")) as {
+    trailingSlash?: boolean;
+    redirects: { source: string; destination: string; statusCode?: number; permanent?: boolean }[];
+  };
+  expect(vercel.trailingSlash).toBe(true);
+  const legados = Object.entries(redirecionamentosLegados);
+  expect(legados.length).toBeGreaterThan(0);
+
+  for (const [origem, destino] of legados) {
+    expect(origem).toMatch(/\.php$/);
+    const regra = vercel.redirects.find((r) => r.source === origem);
+    expect(regra, `${origem} no vercel.json`).toBeDefined();
+    expect(regra?.destination).toBe(destino);
+    expect(regra?.statusCode).toBe(301);
+
+    const resposta = await page.goto(destino);
+    expect(resposta?.status(), `${origem} -> ${destino}`).toBe(200);
+    await expect(page.locator("h1")).toHaveCount(1);
+    await expect(page).toHaveURL(new URL(destino, page.url()).toString());
+  }
+  // Nenhuma regra sobrando no vercel.json que não venha de content/site.ts.
+  expect(vercel.redirects.map((r) => r.source).sort()).toEqual(legados.map(([origem]) => origem).sort());
+});
+
+// ------------------------------------------------------------------
+// Celular: primeira tela e foco do teclado
+// ------------------------------------------------------------------
+
+/** Descreve o foco atual quando ele está na tela, mas coberto pela barra fixa ou pelo palco grudado do montador. */
+async function focoEscondido(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el || el === document.body) return null;
+    let caixa = el.getBoundingClientRect();
+    // Rádio escondido (sr-only): vale o rótulo, que é o que aparece.
+    if (caixa.width <= 2 || caixa.height <= 2) {
+      const rotulo = el.closest("label");
+      if (rotulo) caixa = rotulo.getBoundingClientRect();
+    }
+    const x = caixa.left + caixa.width / 2;
+    const y = caixa.top + caixa.height / 2;
+    if (y < 0 || y > window.innerHeight) return null;
+    const ponto = document.elementFromPoint(x, y);
+    const cobre = ponto?.closest("[data-barra-celular], section[aria-label='Prévia do lenço']");
+    if (cobre && !cobre.contains(el)) return `${el.tagName} "${(el.getAttribute("aria-label") ?? el.textContent ?? "").trim().slice(0, 40)}" em y=${Math.round(y)}`;
+    return null;
+  });
+}
+
+test("no celular, os botões do herói aparecem na primeira tela, acima da barra fixa", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1440) >= 768, "só no celular");
+  await abrir(page, "/");
+  const heroi = page.locator("section[aria-labelledby='inicio-titulo']");
+  const botao = await heroi.getByRole("link", { name: "Ver os lenços" }).boundingBox();
+  const barra = await page.locator("[data-barra-celular]").boundingBox();
+  expect(botao).not.toBeNull();
+  expect(barra).not.toBeNull();
+  expect(botao!.y + botao!.height).toBeLessThanOrEqual(barra!.y);
+});
+
+test("no celular, o foco do teclado não fica atrás da barra fixa nem do palco do montador", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1440) >= 768, "só no celular");
+  test.setTimeout(90_000);
+  // Sem rolagem suave: a posição já vale logo depois da tecla.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const rota of ["/montador/", "/produto/lenco-carijo-duas-cores/", "/lojistas/"]) {
+    await abrir(page, rota);
+    const escondidos: string[] = [];
+    for (let i = 0; i < 40; i++) {
+      await page.keyboard.press("Tab");
+      const escondido = await focoEscondido(page);
+      if (escondido) escondidos.push(escondido);
+    }
+    expect(escondidos, `${rota} (Tab)`).toEqual([]);
+  }
+
+  // Montador, voltando com Shift+Tab a partir do fim do painel (o palco gruda no topo).
+  await abrir(page, "/montador/");
+  await page.getByRole("button", { name: "Copiar link desta combinação" }).focus();
+  const escondidos: string[] = [];
+  for (let i = 0; i < 14; i++) {
+    await page.keyboard.press("Shift+Tab");
+    const escondido = await focoEscondido(page);
+    if (escondido) escondidos.push(escondido);
+  }
+  expect(escondidos, "/montador/ (Shift+Tab)").toEqual([]);
+});
+
+test("no celular, o pedido tem o envio sempre à mão", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1440) >= 768, "só no celular");
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "republicasul:pedido:v1",
+      JSON.stringify([
+        { produto: "lenco-carijo-uma-cor", escolhas: { cor: "azul", medida: "padrao" }, quantidade: 2 },
+        { produto: "lenco-tradicional-maragato", escolhas: { medida: "especial" }, quantidade: 1 },
+      ]),
+    );
+  });
+  await abrir(page, "/pedido/");
+  const barra = page.getByRole("region", { name: "Envio rápido do pedido" });
+  await expect(barra).toBeVisible();
+  const envio = barra.getByRole("link", { name: /Enviar pedido \(3 peças\)/ });
+  await expect(envio).toBeInViewport();
+  const href = (await envio.getAttribute("href")) ?? "";
+  expect(decodeURIComponent(href)).toContain("Total de peças: 3");
+});
+
+test("cada lixeira das observações do pala apaga só a sua, sem invadir a vizinha", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "republicasul:pedido:v1",
+      JSON.stringify([
+        { produto: "pala", escolhas: {}, quantidade: 1 },
+        { produto: "lenco-tradicional-maragato", escolhas: { medida: "padrao" }, quantidade: 1 },
+      ]),
+    );
+    window.localStorage.setItem("republicasul:observacoes:v1", JSON.stringify({ pala: ["crioulo", "preto", "azul"] }));
+  });
+  await abrir(page, "/pedido/");
+  const lixeiras = page.getByRole("button", { name: /^Apagar a observação/ });
+  await expect(lixeiras).toHaveCount(3);
+  const caixas = [];
+  for (const lixeira of await lixeiras.all()) caixas.push((await lixeira.boundingBox())!);
+  for (const [i, caixa] of caixas.entries()) {
+    expect(caixa.width, `lixeira ${i + 1}`).toBeGreaterThanOrEqual(44);
+    expect(caixa.height, `lixeira ${i + 1}`).toBeGreaterThanOrEqual(44);
+    if (i > 0) expect(caixa.y, `lixeira ${i + 1} começa depois da anterior`).toBeGreaterThanOrEqual(caixas[i - 1].y + caixas[i - 1].height - 0.5);
+  }
+  // Toque na beirada de baixo do ícone da primeira: apaga a primeira, não a segunda.
+  const icone = (await lixeiras.first().locator("svg").boundingBox())!;
+  await page.mouse.click(icone.x + icone.width / 2, icone.y + icone.height - 1);
+  await expect(page.getByTestId("nota-item").getByRole("listitem")).toHaveText(["preto", "azul"]);
+});
