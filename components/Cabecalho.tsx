@@ -7,17 +7,26 @@
  *   botão "Seu pedido" com o total de peças (usePedido + totalDePecas, aria-live).
  * - Abaixo de lg: botão de menu (aria-expanded/aria-controls) que abre um painel
  *   com os links grandes e o WhatsApp. Fecha com Esc, ao navegar e trava a rolagem.
- * - O link da rota atual recebe aria-current="page" (usePathname).
+ * - O link da rota atual recebe aria-current="page" (usePathname). No painel
+ *   do celular ele também ganha um sublinhado tracejado (não só a cor).
+ * - Menu aberto: o resto da página (main, rodapé, barra do celular, faixa de
+ *   prévia e "Pular para o conteúdo") fica inert, para o leitor de tela não
+ *   sair do painel para o conteúdo escondido.
+ * - O contador anuncia o total só quando ele muda depois de a página abrir
+ *   (não a cada página carregada), e não em /pedido/, que tem o próprio aviso.
  * Sem props: é renderizado uma vez em app/layout.tsx.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { totalDePecas, usePedido } from "../lib/pedido";
+import { lerItens, totalDePecas, usePedido } from "../lib/pedido";
 import BotaoWhatsApp from "./BotaoWhatsApp";
 import Marca from "./Marca";
-import { itemAtivo, MENSAGEM_GERAL, navegacao } from "./navegacao";
+import { itemAtivo, MENSAGEM_GERAL, navegacao, normalizarCaminho } from "./navegacao";
+
+/** O que fica inert enquanto o menu do celular está aberto (vem do app/layout.tsx). */
+const FORA_DO_MENU = "main, body footer, [data-barra-celular], [data-faixa-previa], .pular-conteudo";
 
 export function IconeLista({ className }: { className?: string }) {
   return (
@@ -38,6 +47,23 @@ export default function Cabecalho() {
   const cabecalhoRef = useRef<HTMLElement>(null);
   const botaoMenuRef = useRef<HTMLButtonElement>(null);
   const painelRef = useRef<HTMLDivElement>(null);
+  const naPaginaPedido = normalizarCaminho(caminho) === "/pedido";
+
+  // Anúncio do contador: só quando o total muda depois da primeira leitura do
+  // navegador. A troca de 0 para o total salvo, que acontece na hidratação,
+  // não é anunciada (lerItens já traz o total salvo).
+  const totalAnterior = useRef<number | null>(null);
+  const [anuncio, setAnuncio] = useState("");
+  useEffect(() => {
+    if (totalAnterior.current === null) {
+      totalAnterior.current = totalDePecas(lerItens());
+      return;
+    }
+    if (total === totalAnterior.current) return;
+    totalAnterior.current = total;
+    if (naPaginaPedido) return;
+    setAnuncio(total > 0 ? `Seu pedido tem ${total === 1 ? "1 peça" : `${total} peças`}.` : "");
+  }, [total, naPaginaPedido]);
 
   // Fundo translúcido depois de rolar um pouco.
   useEffect(() => {
@@ -59,6 +85,11 @@ export default function Cabecalho() {
     const antes = raiz.style.overflow;
     raiz.style.overflow = "hidden";
     painelRef.current?.querySelector<HTMLElement>("a, button")?.focus({ preventScroll: true });
+    // O resto da página sai do alcance do teclado e do leitor de tela.
+    const foraDoMenu = Array.from(document.querySelectorAll<HTMLElement>(FORA_DO_MENU)).filter((el) => !el.inert);
+    foraDoMenu.forEach((el) => {
+      el.inert = true;
+    });
     const aoTeclar = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setAberto(false);
@@ -68,6 +99,9 @@ export default function Cabecalho() {
     document.addEventListener("keydown", aoTeclar);
     return () => {
       raiz.style.overflow = antes;
+      foraDoMenu.forEach((el) => {
+        el.inert = false;
+      });
       document.removeEventListener("keydown", aoTeclar);
     };
   }, [aberto]);
@@ -100,7 +134,7 @@ export default function Cabecalho() {
         }`}
       >
         <div className="conteudo flex h-[var(--altura-cabecalho)] items-center justify-between gap-3">
-          <Link href="/" className="-ml-1 rounded-[var(--raio)] px-1 py-1 no-underline" aria-label="Republicasul, página inicial">
+          <Link href="/" className="-ml-1 min-w-0 rounded-[var(--raio)] px-1 py-1 no-underline" aria-label="Republicasul, página inicial">
             <Marca />
           </Link>
 
@@ -171,7 +205,7 @@ export default function Cabecalho() {
         </div>
         <div aria-hidden="true" className={`linha-de-ponto absolute inset-x-0 bottom-0 transition-opacity duration-300 ${rolou && !aberto ? "opacity-40" : "opacity-0!"}`} />
         <p className="sr-only" aria-live="polite" aria-atomic="true">
-          {total > 0 ? `Seu pedido tem ${total === 1 ? "1 peça" : `${total} peças`}.` : ""}
+          {anuncio}
         </p>
       </header>
 
@@ -195,7 +229,8 @@ export default function Cabecalho() {
                     aria-current={ativo ? "page" : undefined}
                     className={`flex min-h-14 items-center justify-between py-3 font-titulo text-[1.6rem] font-semibold no-underline ${ativo ? "text-ouro" : "text-creme"}`}
                   >
-                    {item.nome}
+                    {/* A página atual também se marca sem depender da cor: sublinhado tracejado. */}
+                    <span className={ativo ? "underline decoration-dashed decoration-2 underline-offset-[0.3em]" : undefined}>{item.nome}</span>
                     <svg viewBox="0 0 24 24" className="h-5 w-5 text-ouro" aria-hidden="true">
                       <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>

@@ -23,7 +23,8 @@ import Montador from "../components/montador/Montador";
 import { caminhoDoProduto, restaurarItem } from "../components/pedido/funcoes";
 import ListaPedido, { TEMPO_DESFAZER } from "../components/pedido/ListaPedido";
 import { escolhasPadrao, produtoPorSlug } from "../content/catalogo";
-import { __reiniciarPedido, adicionarItem, lerItens } from "../lib/pedido";
+import { contato } from "../content/site";
+import { __reiniciarObservacoes, __reiniciarPedido, adicionarItem, anotarObservacao, lerItens, lerObservacoes } from "../lib/pedido";
 import { mensagemPedido, mensagemProduto } from "../lib/whatsapp";
 
 const carijoUma = produtoPorSlug("lenco-carijo-uma-cor")!;
@@ -58,6 +59,7 @@ const hrefSemBarra = (el: Element) => (el.getAttribute("href") ?? "").replace(/\
 beforeEach(() => {
   window.localStorage.clear();
   __reiniciarPedido();
+  __reiniciarObservacoes();
   irPara("/montador/");
 });
 
@@ -114,6 +116,17 @@ describe("combinação do montador", () => {
     expect(lerCombinacao("?modelo=tradicional&cor=rosa")?.produto).toBe("lenco-tradicional-maragato");
   });
 
+  it("as duas cores do carijó nunca ficam iguais (link e troca de cor)", () => {
+    const c = lerCombinacao("?modelo=carijo-duas-cores&cor-1=azul&cor-2=azul")!;
+    expect(c.escolhas["cor-1"]).toBe("azul");
+    expect(c.escolhas["cor-2"]).not.toBe("azul");
+
+    const inicio = combinacaoDoModelo("carijo-duas-cores")!;
+    const igual = mudarOpcao(inicio, "cor-2", inicio.escolhas["cor-1"]);
+    expect(igual.escolhas["cor-2"]).toBe(inicio.escolhas["cor-1"]);
+    expect(igual.escolhas["cor-1"]).not.toBe(inicio.escolhas["cor-1"]);
+  });
+
   it("no tradicional, trocar a cor troca o produto e mantém a medida", () => {
     let c = combinacaoDoModelo("tradicional")!;
     c = mudarOpcao(c, "medida", "especial");
@@ -165,6 +178,8 @@ describe("Montador", () => {
       mensagemProduto({ produto: carijoDuas.slug, escolhas: escolhasPadrao(carijoDuas), quantidade: 1 }),
     );
     expect(screen.getByTestId("preco-montador")).toHaveTextContent("Valor pelo WhatsApp");
+    // Sem o número da loja, nada de prometer a resposta da Republicasul.
+    expect(screen.getByText(contato.whatsapp ? /A Republicasul responde/ : "Valor, prazo e entrega você combina na conversa.")).toBeInTheDocument();
   });
 
   it("trocar modelo e cores muda o produto, a ficha e a mensagem", () => {
@@ -323,18 +338,29 @@ describe("ListaPedido", () => {
     expect(within(itensNaTela()[0]).getByRole("link", { name: "Lenço carijó uma cor" })).toHaveFocus();
   });
 
-  it("o Desfazer some depois de alguns segundos", () => {
+  it("o Desfazer espera enquanto o foco está nele e some alguns segundos depois de o foco sair", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     encher();
     render(<ListaPedido />);
     fireEvent.click(within(itensNaTela()[1]).getByRole("button", { name: /^Remover/ }));
+    expect(screen.getByRole("button", { name: "Desfazer" })).toHaveFocus();
+    // Com o foco do teclado no aviso, o relógio não corre (nem tirando o mouse de cima).
+    fireEvent.mouseEnter(screen.getByTestId("aviso-removido"));
+    fireEvent.mouseLeave(screen.getByTestId("aviso-removido"));
+    act(() => {
+      vi.advanceTimersByTime(TEMPO_DESFAZER * 3);
+    });
     expect(screen.getByTestId("aviso-removido")).toBeInTheDocument();
+
+    // O foco sai do aviso: depois do tempo, ele some.
+    act(() => {
+      screen.getByRole("heading", { name: "Peças na lista" }).focus();
+    });
     act(() => {
       vi.advanceTimersByTime(TEMPO_DESFAZER + 10);
     });
     expect(screen.queryByTestId("aviso-removido")).toBeNull();
     expect(lerItens()).toHaveLength(1);
-    expect(screen.getByRole("heading", { name: "Peças na lista" })).toHaveFocus();
   });
 
   it("remover o último item mostra a lista vazia com o Desfazer", () => {
@@ -367,10 +393,50 @@ describe("ListaPedido", () => {
     expect(esperado).toContain("1) Lenço carijó uma cor");
     expect(esperado).toContain("2) Lenço tradicional Maragato");
     expect(screen.getByTestId("previa-mensagem").textContent).toBe(esperado);
-    expect(screen.getByText("O pedido não é cobrado aqui. A Republicasul responde com valor, prazo e entrega.")).toBeInTheDocument();
+    // Na prévia, cada linha é um bloco; as do item ficam recuadas por inteiro.
+    const linhasRecuadas = Array.from(screen.getByTestId("previa-mensagem").children).filter((el) => el.className.includes("pl-"));
+    expect(linhasRecuadas.length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(
+        contato.whatsapp
+          ? "O pedido não é cobrado aqui. A Republicasul responde com valor, prazo e entrega."
+          : "O pedido não é cobrado aqui. Valor, prazo e entrega você combina na conversa.",
+      ),
+    ).toBeInTheDocument();
 
     clicarSemNavegar(link);
     expect(window.gtag).toHaveBeenCalledWith("event", "clique_whatsapp", { origem: "pedido", produto: undefined });
+  });
+});
+
+describe("ListaPedido: celular e anotações", () => {
+  it("tem uma barra de envio fixa para o celular, com a mesma mensagem", () => {
+    adicionarItem({ produto: carijoUma.slug, escolhas: { cor: "azul", medida: "padrao" }, quantidade: 2 });
+    adicionarItem({ produto: maragato.slug, escolhas: { medida: "especial" }, quantidade: 1 });
+    render(<ListaPedido />);
+    const barra = screen.getByRole("region", { name: "Envio rápido do pedido" });
+    expect(barra).toHaveAttribute("data-barra-celular");
+    expect(barra.className).toContain("md:hidden");
+    const curto = within(barra).getByRole("link", { name: /Enviar pedido \(3 peças\)/ });
+    expect(curto).toHaveAttribute("data-origem", "pedido");
+    expect(curto).toHaveAttribute("target", "_blank");
+    expect(curto.getAttribute("href")).toBe(linkWhats("pedido").getAttribute("href"));
+  });
+
+  it("lista vazia não mostra a barra de envio", () => {
+    render(<ListaPedido />);
+    expect(screen.queryByRole("region", { name: "Envio rápido do pedido" })).toBeNull();
+  });
+
+  it("o que foi escrito no pala vem na Observação; anotação de peça que saiu é esquecida", () => {
+    adicionarItem({ produto: "pala", escolhas: {}, quantidade: 2 });
+    anotarObservacao("pala", "pala crioulo marrom");
+    anotarObservacao("pala", "pala preto");
+    anotarObservacao(maragato.slug, "não está mais na lista");
+    render(<ListaPedido />);
+    expect(screen.getByLabelText("Observação")).toHaveValue("Pala: pala crioulo marrom; pala preto");
+    expect(mensagemDoLink(linkWhats("pedido"))).toContain("Observação: Pala: pala crioulo marrom; pala preto");
+    expect(lerObservacoes()).toEqual({ pala: ["pala crioulo marrom", "pala preto"] });
   });
 });
 

@@ -12,7 +12,7 @@ import { categorias, cores, produtos, produtosDaCategoria } from "../../content/
 export const metadata: Metadata = metadadosDaPagina({
   titulo: "Lenços e palas",
   descricao:
-    "Lenços tradicionais, carijós, farroupilha e palas tramados artesanalmente pela Republicasul, de Porto Alegre/RS. Escolha cor e medida e mande o pedido pronto pelo WhatsApp.",
+    "Lenços tradicionais, carijós, farroupilha e palas tramados artesanalmente pela Republicasul, de Porto Alegre/RS. Escolha cor e medida e peça pelo WhatsApp.",
   caminho: "/catalogo/",
 });
 
@@ -35,13 +35,13 @@ export default function Catalogo() {
           {/* Lenços dobrados sobre o balcão: só enfeite. */}
           <div aria-hidden="true" className="relative mx-auto hidden aspect-[4/3] w-full max-w-[26rem] md:block">
             <div className="absolute left-0 top-[18%] w-[46%] -rotate-[14deg]">
-              <LencoArte padrao="carijo" cores={[cores.verde.hex, cores.branco.hex]} titulo="" />
+              <LencoArte padrao="carijo" cores={[cores.verde.hex, cores.branco.hex]} titulo="" mostrarFranja={false} />
             </div>
             <div className="absolute right-0 top-[18%] w-[46%] rotate-[12deg]">
-              <LencoArte padrao="farroupilha" cores={[cores.verde.hex, cores.vermelho.hex, cores.amarelo.hex]} titulo="" />
+              <LencoArte padrao="farroupilha" cores={[cores.verde.hex, cores.vermelho.hex, cores.amarelo.hex]} titulo="" mostrarFranja={false} />
             </div>
             <div className="absolute left-1/2 top-0 w-[54%] -translate-x-1/2">
-              <LencoArte padrao="liso" cores={[cores.vermelho.hex]} titulo="" />
+              <LencoArte padrao="liso" cores={[cores.vermelho.hex]} titulo="" mostrarFranja={false} />
             </div>
           </div>
         </div>
@@ -99,7 +99,7 @@ export default function Catalogo() {
 
       <BlocoAjuda
         titulo="Não achou o que procura? Chame no WhatsApp"
-        texto="Manda uma mensagem contando a cor, a medida ou o modelo que você quer."
+        texto="Mande uma mensagem contando a cor, a medida ou o modelo que você quer."
         mensagem={MENSAGEM_CATALOGO}
         origem="catalogo"
         tom="claro"

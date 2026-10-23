@@ -18,7 +18,7 @@ import { empresa } from "../content/site";
 
 const TITULO = "Republicasul | Lenços e palas gaúchos tramados artesanalmente";
 const DESCRICAO =
-  "Lenços gaúchos tramados artesanalmente: maragato, chimango, carijó, farroupilha e palas. Monte o seu pedido no site e feche pelo WhatsApp. Republicasul, Porto Alegre/RS.";
+  "Lenços gaúchos tramados artesanalmente: maragato, chimango, carijó, farroupilha e palas. Monte o pedido no site e feche pelo WhatsApp com a Republicasul.";
 
 export const metadata: Metadata = {
   title: { absolute: TITULO },

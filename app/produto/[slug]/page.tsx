@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { outrosProdutos, passoEscolha } from "../../../components/catalogo/funcoes";
+import { outrosProdutos, passosDaCompra, tituloDaLinha } from "../../../components/catalogo/funcoes";
 import GradeProdutos from "../../../components/catalogo/GradeProdutos";
 import PainelProduto from "../../../components/catalogo/PainelProduto";
 import {
@@ -11,11 +11,12 @@ import {
   jsonLdProduto,
   jsonParaScript,
   metadadosDaPagina,
+  temPrecoConfirmado,
   urlAbsoluta,
 } from "../../../components/catalogo/seo";
 import Revelar from "../../../components/Revelar";
 import Trilha from "../../../components/Trilha";
-import { categoriaPorSlug, produtoPorSlug, produtos } from "../../../content/catalogo";
+import { categoriaPorSlug, produtoPorSlug, produtos, produtosDaCategoria } from "../../../content/catalogo";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -43,28 +44,27 @@ export default async function PaginaProduto({ params }: Props) {
   if (!produto) notFound();
 
   const categoria = categoriaPorSlug(produto.categoria);
-  // Linha com um produto só costuma ter o mesmo nome dele: não repete na trilha.
-  const linhaNaTrilha = categoria && categoria.nome.toLowerCase() !== produto.nome.toLowerCase() ? categoria : undefined;
+  // A linha sempre entra na trilha, com link: a página do produto aponta de
+  // volta para a página da linha (e as duas têm títulos diferentes).
+  // O rótulo acima do h1 só aparece quando diz algo além do nome da peça.
+  const rotuloDaLinha = categoria && categoria.nome.toLowerCase() !== produto.nome.toLowerCase() ? categoria.nome : undefined;
+  // "Sobre esta peça": a descrição da linha só soma quando a linha tem mais
+  // de uma peça; nas linhas de uma peça só, ela repete a descrição do produto.
+  const descricaoDaLinha = categoria && produtosDaCategoria(categoria.slug).length > 1 ? categoria.descricao : undefined;
   const outros = outrosProdutos(produto, 4);
-  const passos = [
-    passoEscolha(produto),
-    "Adicione ao seu pedido, junto com outras peças, ou peça agora pelo WhatsApp.",
-    "Na conversa a gente passa o valor, o prazo e o frete e combina o resto.",
-  ];
+  const passos = passosDaCompra(produto);
 
   const topo = (
     <div>
       <Trilha
         itens={[
           { nome: "Lenços", href: "/catalogo/" },
-          ...(linhaNaTrilha ? [{ nome: linhaNaTrilha.nome, href: caminhoCategoria(linhaNaTrilha.slug) }] : []),
+          ...(categoria ? [{ nome: tituloDaLinha(categoria), href: caminhoCategoria(categoria.slug) }] : []),
           { nome: produto.nome, href: caminhoProduto(produto.slug) },
         ]}
       />
-      {linhaNaTrilha && (
-        <p className="rotulo mt-4 text-ouro-escuro">{linhaNaTrilha.nome}</p>
-      )}
-      <h1 id="titulo-produto" className={`${linhaNaTrilha ? "mt-2" : "mt-4"} text-[clamp(2.2rem,4.6vw,3.6rem)]`}>
+      {rotuloDaLinha && <p className="rotulo mt-4 text-ouro-escuro">{rotuloDaLinha}</p>}
+      <h1 id="titulo-produto" className={`${rotuloDaLinha ? "mt-2" : "mt-4"} text-[clamp(2.2rem,4.6vw,3.6rem)]`}>
         {produto.nome}
       </h1>
       <p className="texto-grande mt-4 text-tinta/80">{produto.resumo}</p>
@@ -73,7 +73,10 @@ export default async function PaginaProduto({ params }: Props) {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonParaScript(jsonLdProduto(produto)) }} />
+      {/* Product só com preço confirmado (sem offers o Google marca o item como inválido). */}
+      {temPrecoConfirmado(produto) && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonParaScript(jsonLdProduto(produto)) }} />
+      )}
 
       <section className="secao-clara pb-14 pt-6 md:pb-20 md:pt-8" aria-labelledby="titulo-produto">
         <div className="conteudo">
@@ -90,7 +93,7 @@ export default async function PaginaProduto({ params }: Props) {
               Sobre esta peça
             </h2>
             <p className="texto-grande mt-5 text-creme-2">{produto.descricao}</p>
-            {categoria && <p className="mt-4 text-creme-2">{categoria.descricao}</p>}
+            {descricaoDaLinha && <p className="mt-4 text-creme-2">{descricaoDaLinha}</p>}
           </Revelar>
 
           <Revelar atraso={0.08}>

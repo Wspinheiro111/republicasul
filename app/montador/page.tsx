@@ -6,7 +6,7 @@ import { empresa } from "../../content/site";
 
 const titulo = "Monte o seu lenço";
 const descricao =
-  "Monte o seu lenço gaúcho: escolha o modelo, as cores e a medida e veja o desenho mudar na hora. Depois ponha no pedido ou mande direto pelo WhatsApp para a Republicasul.";
+  "Monte o seu lenço gaúcho: escolha o modelo, as cores e a medida e veja o desenho mudar na hora. Depois ponha no pedido ou mande direto pelo WhatsApp.";
 
 export const metadata: Metadata = {
   title: titulo,

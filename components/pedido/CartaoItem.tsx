@@ -53,7 +53,7 @@ export default function CartaoItem({ item, numero, chave, aoMudarQuantidade, aoR
           <span className="sr-only">Item {numero}:</span>{" "}
           <Link
             href={caminhoDoProduto(item)}
-            className="underline decoration-ouro-escuro/50 decoration-dashed decoration-1 underline-offset-4 hover:decoration-solid"
+            className="inline-flex min-h-11 items-center underline decoration-ouro-escuro/50 decoration-dashed decoration-1 underline-offset-4 hover:decoration-solid"
           >
             {produto.nome}
           </Link>

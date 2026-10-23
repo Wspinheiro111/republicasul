@@ -34,6 +34,7 @@ export default function ArteProduto({ produto, cores, sizes = "(min-width: 1024p
       cores={cores ?? produto.coresDesenho}
       titulo={`Desenho do ${produto.nome.toLowerCase()}`}
       className={className}
+      mostrarFranja={false}
     />
   );
 }

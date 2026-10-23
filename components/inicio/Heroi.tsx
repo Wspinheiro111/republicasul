@@ -3,8 +3,10 @@
  * o lenço grande trocando de cor e como comprar (catálogo, montador, WhatsApp).
  *
  * Ordem no HTML: título, lenço, texto e botões. No celular o lenço aparece
- * logo abaixo do título (sem esperar a rolagem); do md para cima o lenço vai
- * para a coluna da direita (grid-template-areas).
+ * logo abaixo do título (sem esperar a rolagem), menor, e os botões sobem
+ * para logo depois dele (order-first), para caberem na primeira tela acima
+ * da barra fixa; do md para cima o lenço vai para a coluna da direita
+ * (grid-template-areas) e o texto volta para antes dos botões.
  */
 
 import Link from "next/link";
@@ -39,22 +41,22 @@ export default function Heroi() {
         </div>
 
         {/* A margem negativa come o vazio de cima do desenho (a metade dobrada). */}
-        <div className="relative mx-auto -mt-7 w-full max-w-[17rem] sm:-mt-4 sm:max-w-[21rem] md:mt-0 md:max-w-[29rem] md:self-center md:[grid-area:lenco]">
+        <div className="relative mx-auto -mt-7 w-full max-w-[14rem] sm:-mt-4 sm:max-w-[21rem] md:mt-0 md:max-w-[29rem] md:self-center md:[grid-area:lenco]">
           <LencoHeroi
             selo={
-              <div className="absolute -left-3 bottom-[3%] w-[4.5rem] sm:-left-6 sm:w-24 md:-left-10 md:w-28">
+              <div className="absolute -left-3 bottom-[3%] w-14 sm:-left-6 sm:w-24 md:-left-10 md:w-28">
                 <Selo girando />
               </div>
             }
           />
         </div>
 
-        <div className="md:self-start md:pt-7 md:[grid-area:acoes]">
-          <p className="texto-grande max-w-xl text-creme-2">{empresa.assinatura}</p>
+        <div className="flex flex-col md:self-start md:pt-7 md:[grid-area:acoes]">
+          <p className="texto-grande mt-6 max-w-xl text-creme-2 md:mt-0">{empresa.assinatura}</p>
           <p className="mt-3 max-w-xl text-creme-2">
             Escolha o modelo e as cores, junte tudo na sua lista de pedido e feche pelo WhatsApp.
           </p>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div className="order-first mt-0 flex flex-col gap-3 sm:flex-row sm:flex-wrap md:order-none md:mt-7">
             <Link href="/catalogo/" className="botao-acao">
               Ver os lenços
             </Link>
@@ -62,7 +64,7 @@ export default function Heroi() {
               Monte o seu lenço
             </Link>
           </div>
-          <LinkWhatsApp texto={MENSAGEM_GERAL} origem="inicio-heroi" className="mt-4 text-creme-2 hover:text-creme">
+          <LinkWhatsApp texto={MENSAGEM_GERAL} origem="inicio-heroi" className="mt-4 self-start text-creme-2 hover:text-creme">
             Prefere conversar? Chame no WhatsApp
           </LinkWhatsApp>
         </div>

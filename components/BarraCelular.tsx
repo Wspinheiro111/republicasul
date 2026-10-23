@@ -24,7 +24,9 @@ export default function BarraCelular() {
   return (
     <>
       <div aria-hidden="true" className="h-[calc(var(--altura-barra-celular)+env(safe-area-inset-bottom))] bg-couro md:hidden" />
-      <div
+      {/* nav: quem navega por regiões acha a barra (antes era um div fora de qualquer landmark). */}
+      <nav
+        aria-label="Atalhos do pedido"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-ouro/30 bg-[color-mix(in_srgb,var(--couro)_94%,transparent)] pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
         data-barra-celular
       >
@@ -46,7 +48,7 @@ export default function BarraCelular() {
             WhatsApp
           </BotaoWhatsApp>
         </div>
-      </div>
+      </nav>
     </>
   );
 }

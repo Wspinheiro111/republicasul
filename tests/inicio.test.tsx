@@ -152,7 +152,7 @@ describe("Página inicial", () => {
   it("fecha com o WhatsApp na faixa maragato e registra a origem", () => {
     window.gtag = vi.fn();
     render(<Inicio />);
-    const secao = screen.getByRole("region", { name: /Chama a gente no WhatsApp/ });
+    const secao = screen.getByRole("region", { name: /Chame a gente no WhatsApp/ });
     const botao = within(secao).getByRole("link", { name: /Chamar no WhatsApp/ });
     expect(botao).toHaveAttribute("href", linkWhatsApp(MENSAGEM_GERAL));
     fireEvent.click(botao);

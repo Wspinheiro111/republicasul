@@ -33,7 +33,7 @@ export default function LencosEmLeque({ lencos, className }: { lencos: LencoDoLe
         } as CSSProperties;
         return (
           <div key={`${lenco.titulo}-${i}`} className="md:absolute md:left-(--x) md:top-(--y) md:w-[54%] md:rotate-(--r)" style={posicao}>
-            <LencoArte padrao={lenco.padrao} cores={lenco.cores} titulo={lenco.titulo} />
+            <LencoArte padrao={lenco.padrao} cores={lenco.cores} titulo={lenco.titulo} xadrez="graudo" mostrarFranja={false} />
           </div>
         );
       })}

@@ -11,9 +11,9 @@ import { categorias, cores, produtosDaCategoria } from "../../content/catalogo";
 import { numeroLojistas } from "../../lib/whatsapp";
 
 export const metadata: Metadata = metadadosPagina({
-  titulo: "Para lojistas: revenda os lenços Republicasul",
+  titulo: "Para lojistas: revenda lenços e palas tramados",
   descricao:
-    "Tem loja de artigos gaúchos? Revenda os lenços e palas tramados artesanalmente pela Republicasul, de Porto Alegre/RS. Mande os dados da loja e receba as condições para lojistas pelo WhatsApp.",
+    "Tem loja de artigos gaúchos? Revenda os lenços e palas tramados pela Republicasul, de Porto Alegre/RS. Mande os dados da loja e combine pelo WhatsApp.",
   caminho: "/lojistas/",
 });
 
@@ -83,7 +83,13 @@ export default function Lojistas() {
               >
                 {/* No celular o cartão fica deitado; do sm para cima, em pé. */}
                 <div className="secao-escura trama w-24 shrink-0 self-start rounded-[var(--raio-pequeno)] p-2 sm:mx-auto sm:w-full sm:p-4">
-                  <LencoArte padrao={categoria.padrao} cores={coresDaLinha(categoria.slug)} titulo={`Desenho: ${categoria.nome}`} />
+                  <LencoArte
+                    padrao={categoria.padrao}
+                    cores={coresDaLinha(categoria.slug)}
+                    titulo={`Desenho: ${categoria.nome}`}
+                    xadrez="graudo"
+                    mostrarFranja={false}
+                  />
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <h3 className="text-[1.2rem] sm:mt-4">{categoria.nome}</h3>
@@ -113,7 +119,11 @@ export default function Lojistas() {
                 atraso={i * 0.08}
                 className="relative flex gap-4 md:flex-col md:gap-3 md:border-l md:border-dashed md:border-ouro/35 md:px-7 md:first:border-l-0 md:first:pl-0"
               >
-                <span className="font-titulo text-[2.6rem] font-semibold leading-none text-ouro tabular-nums" aria-hidden="true">
+                {/* Largura fixa: os números da Fraunces têm larguras diferentes e desalinhavam os títulos no celular. */}
+                <span
+                  className="w-9 shrink-0 text-center font-titulo text-[2.6rem] font-semibold leading-none text-ouro tabular-nums md:w-auto md:text-left"
+                  aria-hidden="true"
+                >
                   {i + 1}
                 </span>
                 <div>
@@ -136,7 +146,10 @@ export default function Lojistas() {
             </h2>
             <p className="texto-grande mt-5">Só o nome da loja e a cidade são obrigatórios.</p>
             <p className="mt-4">
-              Ao enviar, o WhatsApp abre com a mensagem pronta para a Republicasul. As condições para lojistas vêm na conversa.
+              {/* Sem número em content/site.ts o link não chega à Republicasul: a frase não promete isso. */}
+              {numeroLojistas()
+                ? "Ao enviar, o WhatsApp abre com a mensagem pronta para a Republicasul. As condições para lojistas vêm na conversa."
+                : "Ao enviar, o WhatsApp abre com a mensagem pronta. As condições para lojistas vêm na conversa."}
             </p>
             <hr className="linha-de-ponto mt-8 max-w-xs" />
             <p className="mt-6 text-[0.98rem] text-tinta/80">Prefere conversar direto?</p>

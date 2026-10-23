@@ -16,7 +16,7 @@ import { empresa, SITE_URL } from "../../content/site";
 const CAMINHO = "/guia-do-lenco/";
 const TITULO = "Guia do lenço gaúcho: cores, nomes e padrões";
 const DESCRICAO =
-  "Maragato e chimango, o lenço farroupilha, liso ou carijó: um guia curto para escolher o lenço da pilcha. Na dúvida, mande uma foto no WhatsApp que a gente ajuda.";
+  "Maragato e chimango, o lenço farroupilha, liso ou carijó: um guia curto para escolher o lenço da pilcha. Na dúvida, mande uma foto no WhatsApp.";
 
 export const metadata: Metadata = metadadosPagina({ titulo: TITULO, descricao: DESCRICAO, caminho: CAMINHO });
 
@@ -293,7 +293,7 @@ export default function GuiaDoLenco() {
           </Revelar>
           {/* Lenço dobrado, guardado: só enfeite. */}
           <div aria-hidden="true" className="mx-auto hidden w-full max-w-[17rem] -rotate-6 md:block">
-            <LencoArte padrao="carijo" cores={[cores.verde.hex, cores.branco.hex]} titulo="" />
+            <LencoArte padrao="carijo" cores={[cores.verde.hex, cores.branco.hex]} titulo="" mostrarFranja={false} />
           </div>
         </div>
       </section>

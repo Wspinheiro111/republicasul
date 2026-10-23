@@ -44,22 +44,38 @@ export function metadadosDaPagina({
   };
 }
 
+/** Descrição da linha: o resumo, de onde é e como comprar (curta, cabe no trecho da busca). */
 export function descricaoCategoria(categoria: Categoria): string {
-  return `${categoria.resumo} Peças tramadas artesanalmente pela Republicasul, de Porto Alegre/RS. Monte o pedido e fale pelo WhatsApp.`;
+  return `${categoria.resumo} Da ${empresa.nome}, de ${empresa.cidade}/${empresa.uf}. Peça pelo WhatsApp.`;
 }
 
+/**
+ * Descrição do produto: parte da descrição da peça (que traz o nome dela) e
+ * só acrescenta o convite ao WhatsApp quando o texto ainda não fala nele.
+ */
 export function descricaoProduto(produto: Produto): string {
-  return `${produto.resumo} Monte o pedido e fale pelo WhatsApp.`;
+  const base = produto.descricao.trim();
+  return /whatsapp/i.test(base) ? base : `${base} Monte o pedido e fale pelo WhatsApp.`;
+}
+
+/**
+ * Tem preço confirmado pelo dono? Sem preço, a página não publica o JSON-LD
+ * Product: o Google exige offers, review ou aggregateRating, e nenhum deles
+ * pode ser preenchido sem inventar dado.
+ */
+export function temPrecoConfirmado(produto: Produto): boolean {
+  return typeof produto.preco === "number" && Number.isFinite(produto.preco) && produto.preco > 0;
 }
 
 /**
  * JSON-LD Product. Imagem só se houver foto real; offers só se houver preço
  * confirmado (sem preço não inventamos oferta, disponibilidade nem valor).
+ * A página do produto só publica este bloco quando temPrecoConfirmado().
  */
 export function jsonLdProduto(produto: Produto) {
   const url = urlAbsoluta(caminhoProduto(produto.slug));
   const categoria = categoriaPorSlug(produto.categoria);
-  const temPreco = typeof produto.preco === "number" && Number.isFinite(produto.preco) && produto.preco > 0;
+  const temPreco = temPrecoConfirmado(produto);
   return {
     "@context": "https://schema.org",
     "@type": "Product",

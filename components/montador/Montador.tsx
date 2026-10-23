@@ -16,12 +16,17 @@
  * - A combinação vai para a URL (history.replaceState) e é lida dela ao
  *   abrir, só com ids que existem no catálogo (combinacao.ts).
  * - No celular o palco fica grudado no topo enquanto a pessoa escolhe; no
- *   computador ocupa a coluna da esquerda inteira.
+ *   computador ocupa a coluna da esquerda inteira. Em tela baixa (até 640px
+ *   de altura, como no zoom de 200%) ele deixa de grudar.
+ * - Foco por baixo do palco: a altura dele vai para --altura-palco (o
+ *   scroll-margin do painel usa) e, quando o foco do teclado cai atrás dele
+ *   sem a página rolar, a página desce o que falta.
  */
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import Link from "next/link";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { contato } from "../../content/site";
 import { adicionarItem, lerItens } from "../../lib/pedido";
 import { descreverEscolhas, mensagemProduto } from "../../lib/whatsapp";
 import BotaoWhatsApp from "../BotaoWhatsApp";
@@ -113,6 +118,52 @@ export default function Montador({ topo }: MontadorProps) {
   const [estado, setEstado] = useState<Estado | null>(estadoInicial);
   const [quantidade, setQuantidade] = useState(1);
   const [aviso, setAviso] = useState<Aviso | null>(null);
+  const raizRef = useRef<HTMLDivElement>(null);
+  const palcoRef = useRef<HTMLElement>(null);
+  const painelRef = useRef<HTMLDivElement>(null);
+  const temEstado = estado !== null;
+
+  // A altura do palco grudado vai para --altura-palco (scroll-margin-top do painel no Montador.module.css).
+  useEffect(() => {
+    const raiz = raizRef.current;
+    const palco = palcoRef.current;
+    if (!raiz || !palco || typeof ResizeObserver === "undefined") return;
+    const medir = () => raiz.style.setProperty("--altura-palco", `${Math.round(palco.getBoundingClientRect().height)}px`);
+    medir();
+    const observador = new ResizeObserver(medir);
+    observador.observe(palco);
+    return () => observador.disconnect();
+  }, [temEstado]);
+
+  // O scroll-margin só age quando o navegador rola. Se o foco do teclado cai
+  // num controle que já está "na tela", mas atrás do palco grudado, a página
+  // desce o que falta. Toque com o dedo não mexe na tela (:focus-visible).
+  useEffect(() => {
+    const painel = painelRef.current;
+    const palco = palcoRef.current;
+    if (!painel || !palco) return;
+    const aoFocar = (e: FocusEvent) => {
+      const alvo = e.target;
+      if (!(alvo instanceof HTMLElement)) return;
+      let doTeclado = false;
+      try {
+        doTeclado = alvo.matches(":focus-visible");
+      } catch {
+        doTeclado = false;
+      }
+      if (!doTeclado || window.getComputedStyle(palco).position !== "sticky") return;
+      let caixa = alvo.getBoundingClientRect();
+      // Rádio escondido (sr-only): vale a caixa do rótulo, que é o que aparece.
+      if (caixa.width <= 2 || caixa.height <= 2) {
+        const rotulo = alvo.closest("label");
+        if (rotulo) caixa = rotulo.getBoundingClientRect();
+      }
+      const limite = palco.getBoundingClientRect().bottom + 12;
+      if (caixa.top < limite) window.scrollBy({ top: caixa.top - limite });
+    };
+    painel.addEventListener("focusin", aoFocar);
+    return () => painel.removeEventListener("focusin", aoFocar);
+  }, [temEstado]);
 
   // Ao abrir: a combinação que veio no link (só ids válidos) e a URL arrumada.
   useEffect(() => {
@@ -142,10 +193,13 @@ export default function Montador({ topo }: MontadorProps) {
   const temPreco = textoPreco(produto.preco) !== SEM_PRECO;
 
   // Miniatura de cada cartão: as cores que a pessoa já escolheu naquele modelo.
-  const desenhoDe = (m: Modelo) => {
-    const combinacao = m.id === atual.modelo ? atual : (memoria[m.id] ?? combinacaoDoModelo(m.id));
+  const desenhoDe = (doCartao: Modelo) => {
+    const combinacao = doCartao.id === atual.modelo ? atual : (memoria[doCartao.id] ?? combinacaoDoModelo(doCartao.id));
     const p = combinacao ? produtoDaCombinacao(combinacao) : undefined;
-    return { padrao: p?.padrao ?? m.produtos[0].padrao, cores: combinacao ? coresDaCombinacao(combinacao) : m.produtos[0].coresDesenho };
+    return {
+      padrao: p?.padrao ?? doCartao.produtos[0].padrao,
+      cores: combinacao ? coresDaCombinacao(combinacao) : doCartao.produtos[0].coresDesenho,
+    };
   };
 
   const adicionar = () => {
@@ -163,16 +217,17 @@ export default function Montador({ topo }: MontadorProps) {
   const nomesCoresFixas = nomesDasCoresDoDesenho(produto);
 
   return (
-    <div className="grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
+    <div ref={raizRef} className="grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
       {/* Abertura: no celular vem antes do palco; no computador, no alto da coluna da direita. */}
       <div className="secao-clara lg:col-start-2 lg:row-start-1">
         <div className="mx-auto max-w-[40rem] px-4 pb-7 pt-6 sm:px-6 lg:px-12 lg:pb-4 lg:pt-10">{topo}</div>
       </div>
 
-      {/* Palco: grudado no topo no celular; coluna inteira (com o conteúdo grudado) no computador. */}
+      {/* Palco: grudado no topo no celular (menos em tela baixa); coluna inteira (com o conteúdo grudado) no computador. */}
       <section
+        ref={palcoRef}
         aria-label="Prévia do lenço"
-        className={`secao-escura ${estilos.palco} sticky top-[var(--altura-cabecalho)] z-30 border-b border-ouro/30 lg:static lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:border-b-0`}
+        className={`secao-escura ${estilos.palco} sticky top-[var(--altura-cabecalho)] z-30 border-b border-ouro/30 [@media(max-height:640px)]:static lg:static lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:border-b-0`}
       >
         <div className="lg:sticky lg:top-[var(--altura-cabecalho)] lg:h-[calc(100dvh-var(--altura-cabecalho))] lg:min-h-[34rem]">
           <PalcoLenco produto={produto} escolhas={atual.escolhas} cores={coresLenco} titulo={titulo} quantidade={quantidade} />
@@ -180,7 +235,7 @@ export default function Montador({ topo }: MontadorProps) {
       </section>
 
       {/* Painel de escolhas */}
-      <div className={`secao-clara ${estilos.painel} lg:col-start-2 lg:row-start-2`}>
+      <div ref={painelRef} className={`secao-clara ${estilos.painel} lg:col-start-2 lg:row-start-2`}>
         <div className="mx-auto max-w-[40rem] px-4 pb-14 pt-8 sm:px-6 lg:px-12 lg:pb-20 lg:pt-6">
           <section aria-labelledby={idPasso(1)}>
             <CabecaPasso numero={1} titulo="Modelo" id={idPasso(1)} />
@@ -265,7 +320,12 @@ export default function Montador({ topo }: MontadorProps) {
               {textoPreco(produto.preco)}
             </p>
             <p className="mt-1.5 text-[0.98rem] text-tinta/80">
-              {temPreco ? "Prazo e entrega você combina pelo WhatsApp." : "A Republicasul responde com valor, prazo e entrega."}
+              {/* Sem o número da loja em content/site.ts, o link não chega à Republicasul: nada de prometer a resposta dela. */}
+              {temPreco
+                ? "Prazo e entrega você combina pelo WhatsApp."
+                : contato.whatsapp
+                  ? "A Republicasul responde com valor, prazo e entrega."
+                  : "Valor, prazo e entrega você combina na conversa."}
             </p>
 
             <div className="mt-5 flex flex-col gap-3">
@@ -281,7 +341,7 @@ export default function Montador({ topo }: MontadorProps) {
 
             <div role="status" className="mt-1">
               {aviso && (
-                <motion.div
+                <m.div
                   key={aviso.vez}
                   initial={reduzir ? false : { opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -296,7 +356,7 @@ export default function Montador({ topo }: MontadorProps) {
                   >
                     Ver seu pedido
                   </Link>
-                </motion.div>
+                </m.div>
               )}
             </div>
           </section>

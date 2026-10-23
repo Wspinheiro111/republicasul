@@ -15,8 +15,15 @@
  * - titulo: vira <title> e aria-label (role="img"). Obrigatório.
  * - className: classes do <svg> (ele ocupa 100% da largura, proporção 1:1,
  *   viewBox fixo 0 0 400 400).
- * - animado: balanço suave (Framer Motion). Desligado com "reduzir movimento".
- * - mostrarFranja: franjas finas nas bordas (padrão: true).
+ * - animado: balanço suave (CSS, classe .lenco-balanco em app/globals.css).
+ *   Desligado com "reduzir movimento".
+ * - mostrarFranja: franjas finas nas bordas (padrão: true). Desligue nos
+ *   desenhos pequenos (cartões, miniaturas): as franjas pesam no HTML e nem
+ *   aparecem nesse tamanho.
+ * - xadrez: "fino" (padrão) ou "graudo". O carijó fino some em desenhos
+ *   pequenos (até uns 120px) e vira uma cor só, meio cinza; "graudo" usa
+ *   quadros maiores e cores mais cheias, para a combinação aparecer em
+ *   miniaturas, fichas e cartões estreitos.
  *
  * O lenço é um quadrado visto em losango, levemente dobrado em triângulo na
  * diagonal (a metade de cima tomba para trás), com sombra suave na dobra,
@@ -31,7 +38,6 @@
  * luminancia(hex), útil para escolher texto claro/escuro sobre uma cor.
  */
 
-import { motion } from "framer-motion";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import type { Padrao } from "../content/catalogo";
 import { useReduzirMovimento } from "./movimento";
@@ -43,6 +49,7 @@ export type LencoArteProps = {
   className?: string;
   animado?: boolean;
   mostrarFranja?: boolean;
+  xadrez?: "fino" | "graudo";
 };
 
 const PADRAO_CORES: Record<Padrao, string[]> = {
@@ -205,7 +212,7 @@ const CONTORNO_PALA =
 // Componente
 // ------------------------------------------------------------------
 
-export default function LencoArte({ padrao, cores, titulo, className, animado = false, mostrarFranja = true }: LencoArteProps) {
+export default function LencoArte({ padrao, cores, titulo, className, animado = false, mostrarFranja = true, xadrez = "fino" }: LencoArteProps) {
   const idBruto = useId();
   const base = `lenco${idBruto.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const id = (nome: string) => `${base}-${nome}`;
@@ -220,12 +227,8 @@ export default function LencoArte({ padrao, cores, titulo, className, animado = 
   const tinta = (cor: string) => ({ fill: cor, transition: TRANSICAO });
   const traco = (cor: string) => ({ stroke: cor, transition: TRANSICAO });
 
-  const balanco = balancar
-    ? {
-        animate: { rotate: [0, 1.5, 0, -1.5, 0], y: [0, 3, 0, 3, 0] },
-        transition: { duration: 8, repeat: Infinity, ease: "easeInOut" as const },
-      }
-    : { animate: { rotate: 0, y: 0 }, transition: { duration: 0.6 } };
+  // Balanço em CSS (app/globals.css): sem a classe, o lenço fica parado.
+  const classeBalanco = balancar ? "lenco-balanco" : undefined;
 
   // Trama: fios finos cruzados, por cima da cor, em baixa opacidade.
   const padraoTrama = (girar: boolean) => (
@@ -283,7 +286,7 @@ export default function LencoArte({ padrao, cores, titulo, className, animado = 
             <stop offset="1" stopColor="#000" stopOpacity="0.2" />
           </linearGradient>
         </defs>
-        <motion.g style={{ originX: "50%", originY: "0%" }} initial={false} {...balanco}>
+        <g className={classeBalanco}>
           <path d={CONTORNO_PALA} transform="translate(0 12)" fill="#000" opacity="0.3" filter={url("desfoque")} />
           {mostrarFranja && (
             <g aria-hidden="true">
@@ -308,7 +311,7 @@ export default function LencoArte({ padrao, cores, titulo, className, animado = 
             <rect x="0" y="0" width="400" height="400" fill={url("luz")} />
           </g>
           <path d={CONTORNO_PALA} fill="none" stroke="#000" strokeOpacity="0.22" strokeWidth="1.2" />
-        </motion.g>
+        </g>
       </svg>
     );
   }
@@ -324,7 +327,12 @@ export default function LencoArte({ padrao, cores, titulo, className, animado = 
   const fundoCarijo = umaCorCarijo && paleta.length > 1 ? c(1) : BRANCO;
   const corH = c(0);
   const corV = umaCorCarijo ? c(0) : c(1);
-  const opacidadeCarijo = umaCorCarijo ? 0.55 : 0.72;
+  // Xadrez graúdo: quadros de 20 (e não 9) e cores mais cheias, para a
+  // combinação continuar legível quando o desenho é pequeno.
+  const graudo = xadrez === "graudo";
+  const celula = graudo ? 20 : 9;
+  const opacidadeH = umaCorCarijo ? 0.55 : graudo ? 1 : 0.72;
+  const opacidadeV = umaCorCarijo ? 0.55 : graudo ? 0.85 : 0.72;
 
   const corPorY = (y: number) => {
     if (padrao !== "farroupilha") return 0;
@@ -351,7 +359,8 @@ export default function LencoArte({ padrao, cores, titulo, className, animado = 
       return (
         <>
           <rect x="0" y="0" width="400" height="400" fill={url("carijo")} />
-          <rect x="0" y="0" width="400" height="400" fill={url("trama")} opacity="0.7" />
+          {/* Trama bem leve por cima: mais forte, ela acinzentava o xadrez. */}
+          <rect x="0" y="0" width="400" height="400" fill={url("trama")} opacity="0.25" />
         </>
       );
     }
@@ -373,10 +382,10 @@ export default function LencoArte({ padrao, cores, titulo, className, animado = 
         {padraoTrama(true)}
         {desfoque}
         {padrao === "carijo" && (
-          <pattern id={id("carijo")} width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="9" height="9" style={tinta(fundoCarijo)} />
-            <rect width="9" height="4.5" opacity={opacidadeCarijo} style={tinta(corH)} />
-            <rect width="4.5" height="9" opacity={opacidadeCarijo} style={tinta(corV)} />
+          <pattern id={id("carijo")} width={celula} height={celula} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width={celula} height={celula} style={tinta(fundoCarijo)} />
+            <rect width={celula} height={celula / 2} opacity={opacidadeH} style={tinta(corH)} />
+            <rect width={celula / 2} height={celula} opacity={opacidadeV} style={tinta(corV)} />
           </pattern>
         )}
         <clipPath id={id("cima")}>
@@ -406,7 +415,7 @@ export default function LencoArte({ padrao, cores, titulo, className, animado = 
         </linearGradient>
       </defs>
 
-      <motion.g style={{ originX: "50%", originY: "0%" }} initial={false} {...balanco}>
+      <g className={classeBalanco}>
         <g transform={DESLOCAR}>
           {/* Sombra do pano sobre o fundo. */}
           <path d={SILHUETA} transform="translate(0 12)" fill="#000" opacity="0.3" filter={url("desfoque")} />
@@ -437,7 +446,7 @@ export default function LencoArte({ padrao, cores, titulo, className, animado = 
           {/* Bainha. */}
           <path d={SILHUETA} fill="none" stroke="#000" strokeOpacity="0.22" strokeWidth="1.1" strokeLinejoin="round" />
         </g>
-      </motion.g>
+      </g>
     </svg>
   );
 }

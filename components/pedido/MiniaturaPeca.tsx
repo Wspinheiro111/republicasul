@@ -37,7 +37,7 @@ export default function MiniaturaPeca({ produto, escolhas, className }: Miniatur
         <Image src={foto} alt="" fill unoptimized sizes="112px" className="object-cover" onError={() => setFalhou(true)} />
       ) : (
         <div className="-mt-[6%] px-[9%]">
-          <LencoArte padrao={produto.padrao} cores={coresDasEscolhas(produto, escolhas)} titulo="" mostrarFranja={false} />
+          <LencoArte padrao={produto.padrao} cores={coresDasEscolhas(produto, escolhas)} titulo="" mostrarFranja={false} xadrez="graudo" />
         </div>
       )}
     </div>

@@ -59,7 +59,7 @@ export default function CartoesModelo({ modelos, escolhido, aoEscolher, desenhoD
             >
               <span aria-hidden="true" className="block w-12 shrink-0 overflow-hidden rounded-[var(--raio-pequeno)] bg-couro px-1 pb-1 sm:w-14">
                 <span className="-mt-[12%] block">
-                  <LencoArte padrao={padrao} cores={cores} titulo="" mostrarFranja={false} />
+                  <LencoArte padrao={padrao} cores={cores} titulo="" mostrarFranja={false} xadrez="graudo" />
                 </span>
               </span>
               <span className="min-w-0 pr-6">

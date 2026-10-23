@@ -19,7 +19,7 @@
  *   (sem opção de cor), ela aparece na ficha; o desenho segue como prévia.
  */
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import Image from "next/image";
 import { useState } from "react";
 import type { Produto } from "../../content/catalogo";
@@ -84,7 +84,7 @@ export default function PalcoLenco({ produto, escolhas, cores, titulo, quantidad
           {/* O alto do desenho é vazio (a metade de cima tomba para trás): sobe um pouco. */}
           <div className="relative -my-[7%] grid [&>*]:[grid-area:1/1]" data-testid="desenho-montador">
             <AnimatePresence initial={false}>
-              <motion.div
+              <m.div
                 key={produto.padrao}
                 initial={{ opacity: 0, scale: 0.94, rotate: -4 }}
                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
@@ -92,7 +92,7 @@ export default function PalcoLenco({ produto, escolhas, cores, titulo, quantidad
                 transition={{ duration: reduzir ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
               >
                 <LencoArte padrao={produto.padrao} cores={cores} titulo={titulo} animado={!pausado} />
-              </motion.div>
+              </m.div>
             </AnimatePresence>
           </div>
         </div>
@@ -107,15 +107,16 @@ export default function PalcoLenco({ produto, escolhas, cores, titulo, quantidad
           <p className="mt-1 font-titulo text-[1.08rem] font-semibold leading-tight text-creme sm:text-[1.25rem] lg:text-[1.9rem]">
             {produto.nome}
           </p>
-          <ul className="m-0 mt-1.5 flex list-none flex-wrap gap-x-2 p-0 text-[0.9rem] leading-snug text-creme-2 lg:mt-2.5 lg:justify-center lg:text-[1.02rem]">
+          {/* Celular: uma escolha por linha, sem separador. Computador: em linha, com o "·" preso ao fim do item (a quebra cai depois dele). */}
+          <ul className="m-0 mt-1.5 flex list-none flex-col p-0 text-[0.9rem] leading-snug text-creme-2 lg:mt-2.5 lg:flex-row lg:flex-wrap lg:justify-center lg:gap-x-2 lg:text-[1.02rem]">
             {partes.map((parte, i) => (
-              <li key={parte} className="inline-flex gap-2">
-                {i > 0 && (
-                  <span aria-hidden="true" className="text-ouro">
+              <li key={parte} className="lg:whitespace-nowrap">
+                {parte}
+                {i < partes.length - 1 && (
+                  <span aria-hidden="true" className="ml-2 hidden text-ouro lg:inline">
                     ·
                   </span>
                 )}
-                <span>{parte}</span>
               </li>
             ))}
           </ul>

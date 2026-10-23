@@ -3,7 +3,7 @@
  *
  *   <BlocoAjuda
  *     titulo="Não achou a cor ou a medida? Chame no WhatsApp"
- *     texto="Manda uma mensagem contando o que procura."
+ *     texto="Mande uma mensagem contando o que procura."
  *     mensagem={mensagemCategoria(categoria)}
  *     origem="categoria"
  *   />

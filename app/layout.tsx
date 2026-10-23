@@ -3,14 +3,19 @@ import { Barlow, Barlow_Condensed, Fraunces } from "next/font/google";
 import BarraCelular from "../components/BarraCelular";
 import Cabecalho from "../components/Cabecalho";
 import FaixaPrevia from "../components/FaixaPrevia";
+import ProvedorMovimento from "../components/ProvedorMovimento";
 import Rodape from "../components/Rodape";
 import { IMAGEM_COMPARTILHAMENTO } from "../components/conteudo/seo";
 import { empresa, links, PREVIA, SITE_URL } from "../content/site";
 import "./globals.css";
 
+// Só o subconjunto "latin" é pré-carregado: o site não usa nenhum caractere
+// do latin-ext. As @font-face do latin-ext continuam no CSS (unicode-range):
+// se alguém digitar um caractere de fora, a fonte certa vem na hora.
+
 // Títulos: serifa expressiva (variável, com eixo de tamanho óptico).
 const fraunces = Fraunces({
-  subsets: ["latin", "latin-ext"],
+  subsets: ["latin"],
   axes: ["opsz"],
   variable: "--fonte-titulo",
   display: "swap",
@@ -18,7 +23,7 @@ const fraunces = Fraunces({
 
 // Texto corrido.
 const barlow = Barlow({
-  subsets: ["latin", "latin-ext"],
+  subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--fonte-texto",
   display: "swap",
@@ -26,7 +31,7 @@ const barlow = Barlow({
 
 // Rótulos em caixa alta, botões e navegação.
 const barlowCondensed = Barlow_Condensed({
-  subsets: ["latin", "latin-ext"],
+  subsets: ["latin"],
   weight: ["500", "600"],
   variable: "--fonte-rotulo",
   display: "swap",
@@ -89,16 +94,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className={`${fraunces.variable} ${barlow.variable} ${barlowCondensed.variable}`}>
       <body>
-        <a href="#conteudo" className="pular-conteudo">
-          Pular para o conteúdo
-        </a>
-        {PREVIA && <FaixaPrevia />}
-        <Cabecalho />
-        <main id="conteudo" tabIndex={-1}>
-          {children}
-        </main>
-        <Rodape />
-        <BarraCelular />
+        <ProvedorMovimento>
+          <a href="#conteudo" className="pular-conteudo">
+            Pular para o conteúdo
+          </a>
+          {PREVIA && <FaixaPrevia />}
+          <Cabecalho />
+          <main id="conteudo" tabIndex={-1}>
+            {children}
+          </main>
+          <Rodape />
+          <BarraCelular />
+        </ProvedorMovimento>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizacao).replace(/</g, "\\u003c") }}

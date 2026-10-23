@@ -7,21 +7,23 @@
  *   <CartaoProduto produto={produto} mostrarCategoria={false} prioridade />
  *
  * - Foto real (next/image, unoptimized por ser export estático) quando
- *   produto.fotos tiver itens; senão o desenho do LencoArte.
+ *   produto.fotos tiver itens; senão o desenho do LencoArte, nas cores da
+ *   escolha padrão (exatamente o que o botão rápido põe na lista).
  * - Nome com link para o produto (o cartão inteiro é clicável), resumo,
  *   "Valor pelo WhatsApp" ou o preço em reais quando confirmado.
  * - Botão rápido "Adicionar ao pedido" com as escolhas padrão e quantidade 1.
+ *   Com opção de cor, mostra antes "Vai com: vermelho e azul".
  *   Mostra "Adicionado", anuncia no leitor de tela e deixa o link "Ver seu pedido".
  */
 
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useId, useState } from "react";
-import { categoriaPorSlug, escolhasPadrao, type Produto } from "../../content/catalogo";
+import { categoriaPorSlug, coresDasEscolhas, escolhasPadrao, type Produto } from "../../content/catalogo";
 import { adicionarItem } from "../../lib/pedido";
 import { descreverEscolhas } from "../../lib/whatsapp";
 import LencoArte from "../LencoArte";
-import { textoPreco, tituloDoDesenho } from "./funcoes";
+import { nomesDasCores, textoPreco, tituloDoDesenho } from "./funcoes";
 import { caminhoProduto } from "./seo";
 
 export type CartaoProdutoProps = {
@@ -56,6 +58,10 @@ export default function CartaoProduto({ produto, mostrarCategoria = true, priori
   const categoria = categoriaPorSlug(produto.categoria);
   const foto = produto.fotos[0];
   const href = caminhoProduto(produto.slug);
+  // Uma escolha só para o desenho, o botão rápido e os avisos: o cartão
+  // mostra exatamente a combinação que entra na lista.
+  const escolhas = escolhasPadrao(produto);
+  const coresEscolhidas = nomesDasCores(produto, escolhas);
 
   // "Adicionado" volta a "Adicionar" depois de um instante; o link fica.
   useEffect(() => {
@@ -65,12 +71,12 @@ export default function CartaoProduto({ produto, mostrarCategoria = true, priori
   }, [recente, vezes]);
 
   const adicionar = () => {
-    adicionarItem({ produto: produto.slug, escolhas: escolhasPadrao(produto), quantidade: 1 });
+    adicionarItem({ produto: produto.slug, escolhas, quantidade: 1 });
     setVezes((n) => n + 1);
     setRecente(true);
   };
 
-  const escolhaPadrao = descreverEscolhas(produto, escolhasPadrao(produto));
+  const escolhaPadrao = descreverEscolhas(produto, escolhas);
 
   return (
     <article
@@ -90,7 +96,12 @@ export default function CartaoProduto({ produto, mostrarCategoria = true, priori
           />
         ) : (
           <div className="absolute inset-[8%] transition-transform duration-500 ease-out group-hover:-translate-y-1 group-hover:scale-[1.03]">
-            <LencoArte padrao={produto.padrao} cores={produto.coresDesenho} titulo={tituloDoDesenho(produto)} />
+            <LencoArte
+              padrao={produto.padrao}
+              cores={coresDasEscolhas(produto, escolhas)}
+              titulo={tituloDoDesenho(produto, escolhas)}
+              mostrarFranja={false}
+            />
           </div>
         )}
         {/* Costura em volta da vitrine. */}
@@ -112,6 +123,11 @@ export default function CartaoProduto({ produto, mostrarCategoria = true, priori
         <p className="mt-auto pt-2 font-rotulo text-[0.86rem] font-semibold uppercase tracking-[0.07em] text-tinta">
           {textoPreco(produto.preco)}
         </p>
+        {coresEscolhidas && (
+          <p className="text-[0.86rem] leading-snug text-tinta/75" data-testid="vai-com">
+            Vai com: <span className="text-tinta">{coresEscolhidas}</span>
+          </p>
+        )}
 
         {/* Acima do link que cobre o cartão. */}
         <div className="relative z-10 mt-1 flex flex-col items-stretch">

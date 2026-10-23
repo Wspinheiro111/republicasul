@@ -67,7 +67,7 @@ export default function CoresDoLenco() {
             return (
               <Revelar como="li" key={item.nome} atraso={i * 0.08} className="grid grid-cols-[6.5rem_minmax(0,1fr)] content-start items-start gap-5 sm:grid-cols-1">
                 <div className="mx-auto w-full max-w-[13rem] sm:px-4">
-                  <LencoArte padrao={item.padrao} cores={item.cores} titulo={item.titulo} />
+                  <LencoArte padrao={item.padrao} cores={item.cores} titulo={item.titulo} mostrarFranja={false} />
                 </div>
                 <div>
                   <h3 className="text-[1.5rem]">{item.nome}</h3>

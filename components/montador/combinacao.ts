@@ -21,6 +21,7 @@ import {
   type Produto,
 } from "../../content/catalogo";
 import type { ItemPedido } from "../../lib/whatsapp";
+import { semCorRepetida } from "../catalogo/funcoes";
 
 export const CAMINHO_MONTADOR = "/montador/";
 export const MODELO_TRADICIONAL = "tradicional";
@@ -182,7 +183,8 @@ export function mudarOpcao(atual: Combinacao, opcaoId: string, valorId: string):
   }
   const produto = produtoPorSlug(atual.produto);
   if (!produto || !valorValido(produto, opcaoId, valorId)) return atual;
-  return { ...atual, escolhas: { ...atual.escolhas, [opcaoId]: valorId } };
+  // Duas opções de cor nunca na mesma cor: a outra anda para a primeira cor livre.
+  return { ...atual, escolhas: semCorRepetida(produto, { ...atual.escolhas, [opcaoId]: valorId }, opcaoId) };
 }
 
 export function mesmasEscolhas(a: Record<string, string>, b: Record<string, string>): boolean {
@@ -327,7 +329,8 @@ export function lerCombinacao(busca: string | URLSearchParams): Combinacao | nul
     const valor = params.get(opcao.id);
     if (valorValido(produto, opcao.id, valor)) base.escolhas[opcao.id] = valor;
   }
-  return base;
+  // Link com ?cor-1=azul&cor-2=azul: a segunda cor vai para a primeira cor livre.
+  return { ...base, escolhas: semCorRepetida(produto, base.escolhas) };
 }
 
 // ------------------------------------------------------------------

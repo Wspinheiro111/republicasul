@@ -48,6 +48,7 @@ export default function Categorias() {
                       padrao={categoria.padrao}
                       cores={coresDaCategoria(categoria.slug)}
                       titulo={`Desenho: ${categoria.nome.toLowerCase()}`}
+                      mostrarFranja={false}
                     />
                   </div>
                   <div className="flex flex-1 flex-col p-5">

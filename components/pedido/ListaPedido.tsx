@@ -12,13 +12,27 @@
  *   alguns segundos; o item volta ao mesmo lugar).
  * - Dados opcionais (nome, cidade, observação), prévia da mensagem ao vivo e
  *   o botão grande "Enviar pedido pelo WhatsApp" (mensagemPedido, origem "pedido").
+ * - No celular, uma barra fixa "Enviar pedido (n peças)" (a BarraCelular some
+ *   nesta página), para o envio não ficar só no fim da página.
+ * - O que o cliente escreveu no "Conte o que procura" do pala (anotações de
+ *   lib/pedido) já vem no campo Observação.
  * - Lista vazia: EstadoVazio.
  */
 
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { produtoPorSlug } from "../../content/catalogo";
-import { alterarQuantidade, removerItem, totalDePecas, usePedido } from "../../lib/pedido";
+import { contato } from "../../content/site";
+import {
+  alterarQuantidade,
+  esquecerObservacoes,
+  lerItens,
+  lerObservacoes,
+  removerItem,
+  totalDePecas,
+  usePedido,
+} from "../../lib/pedido";
 import { mensagemPedido, type DadosCliente, type ItemPedido } from "../../lib/whatsapp";
 import BotaoWhatsApp from "../BotaoWhatsApp";
 import { pecas } from "../montador/combinacao";
@@ -28,13 +42,59 @@ import CartaoItem from "./CartaoItem";
 import EstadoVazio from "./EstadoVazio";
 import { chaveDoItem, restaurarItem } from "./funcoes";
 
-/** Quanto tempo o "Desfazer" fica na tela (o mouse por cima segura). */
+/** Quanto tempo o "Desfazer" fica na tela (o mouse por cima ou o foco nele seguram). */
 export const TEMPO_DESFAZER = 9000;
 
 const LIMITE_NOME = 80;
 const LIMITE_OBSERVACAO = 500;
 
 type Removido = { item: ItemPedido; indice: number; vez: number };
+
+/**
+ * Observação inicial a partir das anotações das peças que estão na lista
+ * ("Pala: crioulo marrom; preto"). Anotações de peças que já saíram da
+ * lista são esquecidas.
+ */
+function observacaoDasAnotacoes(itens: ItemPedido[]): string {
+  const naLista = new Set(itens.map((i) => i.produto));
+  const anotacoes = lerObservacoes();
+  const linhas: string[] = [];
+  for (const [slug, textos] of Object.entries(anotacoes)) {
+    if (!naLista.has(slug)) {
+      esquecerObservacoes(slug);
+      continue;
+    }
+    const produto = produtoPorSlug(slug);
+    if (produto && textos.length) linhas.push(`${produto.nome}: ${textos.join("; ")}`);
+  }
+  return linhas.join("\n");
+}
+
+/**
+ * A prévia mostra cada linha da mensagem num bloco. As linhas que começam
+ * com espaço (as do item) ficam recuadas por inteiro, também quando quebram.
+ * O texto (textContent) continua igual ao da mensagem enviada: os espaços do
+ * começo ficam num span escondido e as quebras de linha continuam no texto.
+ */
+function LinhasDaPrevia({ mensagem }: { mensagem: string }) {
+  const linhas = mensagem.split("\n");
+  return (
+    <>
+      {linhas.map((linha, i) => {
+        const recuo = /^\s+/.exec(linha)?.[0] ?? "";
+        return (
+          <Fragment key={i}>
+            <span className={`inline-block w-full align-top ${recuo ? "pl-[1.4em]" : ""}`}>
+              {recuo && <span className="hidden">{recuo}</span>}
+              {linha.slice(recuo.length)}
+            </span>
+            {i < linhas.length - 1 ? "\n" : null}
+          </Fragment>
+        );
+      })}
+    </>
+  );
+}
 
 function Carregando() {
   return (
@@ -78,7 +138,14 @@ function AvisoRemovido({
     <Elemento
       className="my-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-[var(--raio)] border border-dashed border-tinta/35 bg-creme-2/80 px-4 py-2.5"
       onMouseEnter={() => aoSegurar(true)}
-      onMouseLeave={() => aoSegurar(false)}
+      // Tirar o mouse de cima não solta o relógio enquanto o foco do teclado está no aviso.
+      onMouseLeave={(e) => {
+        if (!e.currentTarget.contains(document.activeElement)) aoSegurar(false);
+      }}
+      onFocus={() => aoSegurar(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) aoSegurar(false);
+      }}
       data-testid="aviso-removido"
     >
       <p className="m-0 text-[0.98rem]">
@@ -112,6 +179,15 @@ export default function ListaPedido() {
   const listaRef = useRef<HTMLUListElement>(null);
 
   const temItens = itens.length > 0;
+
+  // Ao abrir a página: o que o cliente anotou nas peças sem opções (o pala) entra na Observação.
+  const observacaoPreenchida = useRef(false);
+  useEffect(() => {
+    if (!montado || observacaoPreenchida.current) return;
+    observacaoPreenchida.current = true;
+    const texto = observacaoDasAnotacoes(lerItens());
+    if (texto) setCliente((c) => (c.observacao ? c : { ...c, observacao: texto }));
+  }, [montado]);
 
   // O "Desfazer" some sozinho depois de alguns segundos (o mouse por cima segura).
   useEffect(() => {
@@ -210,7 +286,7 @@ export default function ListaPedido() {
   const idEnvio = `${base}-envio`;
   const idPrevia = `${base}-previa`;
   const campo =
-    "block min-h-12 w-full rounded-[var(--raio)] border border-tinta/30 bg-white/70 px-3.5 py-2.5 text-[1rem] text-tinta placeholder:text-tinta/65 focus-visible:border-tinta";
+    "block min-h-12 w-full rounded-[var(--raio)] border border-tinta/55 bg-white/70 px-3.5 py-2.5 text-[1rem] text-tinta placeholder:text-tinta/70 focus-visible:border-tinta";
   const rotulo = "rotulo mb-2 block text-ouro-escuro";
   const mudarCampo = (nome: keyof DadosCliente) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setCliente((c) => ({ ...c, [nome]: e.target.value }));
@@ -296,15 +372,13 @@ export default function ListaPedido() {
           <p id={idPrevia} className={rotulo}>
             Prévia da mensagem
           </p>
-          <div
-            role="region"
-            aria-labelledby={idPrevia}
-            tabIndex={0}
-            className="costura max-h-[22rem] overflow-auto rounded-[var(--raio-grande)] bg-creme-2 px-5 py-4"
-          >
-            <pre className="m-0 whitespace-pre-wrap break-words font-texto text-[0.98rem] leading-relaxed text-tinta" data-testid="previa-mensagem">
-              {mensagem}
-            </pre>
+          {/* A costura fica na moldura de fora, que não rola; o texto rola por dentro dela. */}
+          <div className="costura rounded-[var(--raio-grande)] bg-creme-2 p-[10px]">
+            <div role="region" aria-labelledby={idPrevia} tabIndex={0} className="max-h-[21rem] overflow-auto rounded-[var(--raio-pequeno)] px-3 py-2.5">
+              <pre className="m-0 whitespace-pre-wrap break-words font-texto text-[0.98rem] leading-relaxed text-tinta" data-testid="previa-mensagem">
+                <LinhasDaPrevia mensagem={mensagem} />
+              </pre>
+            </div>
           </div>
         </div>
 
@@ -312,9 +386,34 @@ export default function ListaPedido() {
           <BotaoWhatsApp texto={mensagem} origem="pedido" larguraTotal className="min-h-14 text-[1.15rem]">
             Enviar pedido pelo WhatsApp
           </BotaoWhatsApp>
-          <p className="mt-3 text-[0.98rem] text-tinta/80">O pedido não é cobrado aqui. A Republicasul responde com valor, prazo e entrega.</p>
+          <p className="mt-3 text-[0.98rem] text-tinta/80">
+            {/* Sem o número da loja em content/site.ts, o link não chega à Republicasul: nada de prometer a resposta dela. */}
+            {contato.whatsapp
+              ? "O pedido não é cobrado aqui. A Republicasul responde com valor, prazo e entrega."
+              : "O pedido não é cobrado aqui. Valor, prazo e entrega você combina na conversa."}
+          </p>
         </div>
       </section>
+
+      {/* Celular: a BarraCelular some nesta página; esta barra deixa o envio sempre à mão. */}
+      {createPortal(
+        <>
+          <div aria-hidden="true" className="h-[calc(var(--altura-barra-celular)+env(safe-area-inset-bottom))] bg-couro md:hidden" />
+          <div
+            role="region"
+            aria-label="Envio rápido do pedido"
+            data-barra-celular
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-ouro/30 bg-[color-mix(in_srgb,var(--couro)_94%,transparent)] pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+          >
+            <div className="flex h-[var(--altura-barra-celular)] items-center px-3">
+              <BotaoWhatsApp texto={mensagem} origem="pedido" variante="compacto" larguraTotal className="min-h-12">
+                Enviar pedido ({pecas(total)})
+              </BotaoWhatsApp>
+            </div>
+          </div>
+        </>,
+        document.body,
+      )}
     </div>,
   );
 }

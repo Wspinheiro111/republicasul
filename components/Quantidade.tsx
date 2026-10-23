@@ -58,14 +58,18 @@ export default function Quantidade({ valor, aoMudar, rotulo = "Quantidade", rotu
       <label htmlFor={id} className={rotuloVisivel ? `rotulo mb-2 block ${escuro ? "text-ouro" : "text-ouro-escuro"}` : "sr-only"}>
         {rotulo}
       </label>
+      {/*
+        Sem overflow-hidden no contêiner: ele cortava o anel de foco dos três
+        controles. As pontas arredondadas ficam nos próprios botões.
+      */}
       <div
-        className={`inline-flex items-stretch overflow-hidden rounded-[var(--raio)] border ${
-          escuro ? "border-creme/35 bg-white/5" : "border-tinta/30 bg-white/60"
+        className={`inline-flex items-stretch rounded-[var(--raio)] border ${
+          escuro ? "border-creme/50 bg-white/5" : "border-tinta/55 bg-white/60"
         }`}
       >
         <button
           type="button"
-          className={botao}
+          className={`${botao} rounded-l-[var(--raio)]`}
           onClick={() => mudar(valor - 1)}
           disabled={valor <= QUANTIDADE_MINIMA}
           aria-label={`Diminuir ${rotulo.toLowerCase()}`}
@@ -97,7 +101,7 @@ export default function Quantidade({ valor, aoMudar, rotulo = "Quantidade", rotu
         />
         <button
           type="button"
-          className={botao}
+          className={`${botao} rounded-r-[var(--raio)]`}
           onClick={() => mudar(valor + 1)}
           disabled={valor >= QUANTIDADE_MAXIMA}
           aria-label={`Aumentar ${rotulo.toLowerCase()}`}

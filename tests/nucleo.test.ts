@@ -3,6 +3,8 @@ import { categorias, coresDasEscolhas, escolhasPadrao, produtoPorSlug, produtos 
 import { redirecionamentosLegados } from "../content/site";
 import { linkWhatsApp, mensagemLojista, mensagemPedido, mensagemProduto } from "../lib/whatsapp";
 import { __reiniciarPedido, adicionarItem, alterarQuantidade, lerItens, removerItem, totalDePecas } from "../lib/pedido";
+import { contato, PREVIA } from "../content/site";
+import { __reiniciarObservacoes, anotarObservacao, esquecerObservacoes, lerObservacoes } from "../lib/pedido";
 
 describe("catálogo", () => {
   it("tem slugs únicos e toda categoria de produto existe", () => {
@@ -103,5 +105,49 @@ describe("lista de pedido", () => {
     window.localStorage.setItem("republicasul:pedido:v1", "[{\"produto\":\"x\"}, 3, null]");
     __reiniciarPedido();
     expect(lerItens()).toEqual([]);
+  });
+});
+
+describe("publicação", () => {
+  it("fora da prévia, o WhatsApp da loja tem número com DDI 55", () => {
+    // Na prévia o número pode faltar (a faixa avisa); publicado, sem ele os pedidos não chegam à loja.
+    if (!PREVIA) expect(contato.whatsapp.replace(/\D/g, "")).toMatch(/^55\d{10,11}$/);
+  });
+});
+
+describe("anotações por peça", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    __reiniciarObservacoes();
+  });
+
+  it("guarda o texto por produto, sem repetir e sem texto vazio", () => {
+    anotarObservacao("pala", "  pala crioulo   marrom ");
+    anotarObservacao("pala", "Pala crioulo marrom");
+    anotarObservacao("pala", "   ");
+    anotarObservacao("pala", "pala preto");
+    anotarObservacao("produto-que-nao-existe", "qualquer coisa");
+    expect(lerObservacoes()).toEqual({ pala: ["pala crioulo marrom", "pala preto"] });
+  });
+
+  it("lembra depois de recarregar, ignora dados corrompidos e esquece por produto", () => {
+    anotarObservacao("pala", "pala preto");
+    __reiniciarObservacoes();
+    expect(lerObservacoes()).toEqual({ pala: ["pala preto"] });
+    esquecerObservacoes("pala");
+    expect(lerObservacoes()).toEqual({});
+
+    window.localStorage.setItem("republicasul:observacoes:v1", "{\"pala\": [3, \"ok\"], \"x\": [\"y\"]}");
+    __reiniciarObservacoes();
+    expect(lerObservacoes()).toEqual({ pala: ["ok"] });
+    window.localStorage.setItem("republicasul:observacoes:v1", "não é json");
+    __reiniciarObservacoes();
+    expect(lerObservacoes()).toEqual({});
+  });
+
+  it("não mexe na lista de pedido", () => {
+    window.localStorage.setItem("republicasul:pedido:v1", "[]");
+    anotarObservacao("pala", "pala preto");
+    expect(window.localStorage.getItem("republicasul:pedido:v1")).toBe("[]");
   });
 });

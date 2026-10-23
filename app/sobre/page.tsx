@@ -13,8 +13,8 @@ import { categorias, cores } from "../../content/catalogo";
 import { empresa } from "../../content/site";
 
 export const metadata: Metadata = metadadosPagina({
-  titulo: "Sobre a Republicasul",
-  descricao: `A Republicasul, de ${empresa.cidade}/${empresa.uf}, trabalha com lenços e palas da indumentária gaúcha tramados artesanalmente. Veja como comprar pelo WhatsApp e como falar com a gente.`,
+  titulo: "Quem somos",
+  descricao: `A Republicasul, de ${empresa.cidade}/${empresa.uf}, trabalha com lenços e palas da indumentária gaúcha. Veja como comprar pelo WhatsApp e fale com a gente.`,
   caminho: "/sobre/",
 });
 
@@ -100,7 +100,7 @@ export default function Sobre() {
               Lenços e palas tramados artesanalmente
             </h2>
             <p className="texto-grande mt-6 text-creme-2">
-              Os lenços tradicionais levam a Trama Republicasul, a trama que dá nome à casa.
+              Os lenços tradicionais levam a Trama Republicasul, a trama que leva o nome da casa.
             </p>
             <p className="mt-4 text-creme-2">Tem também o carijó, de uma ou duas cores, o lenço farroupilha e os palas.</p>
           </Revelar>

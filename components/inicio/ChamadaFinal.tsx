@@ -17,7 +17,7 @@ export default function ChamadaFinal() {
         <div className="max-w-2xl">
           <p className="rotulo text-creme">A venda fecha no WhatsApp</p>
           <h2 id="inicio-chamada" className="mt-3">
-            Ficou na dúvida? Chama a gente no WhatsApp.
+            Ficou na dúvida? Chame a gente no WhatsApp.
           </h2>
           <p className="texto-grande mt-4 text-creme">
             A gente ajuda a escolher o lenço, a cor e a medida. Se a lista já está pronta, é só abrir o seu pedido e enviar.
@@ -36,7 +36,8 @@ export default function ChamadaFinal() {
             </Link>
           </div>
         </div>
-        <Selo girando className="hidden w-40 rotate-[-8deg] md:block lg:w-48" />
+        {/* Parado: este selo não tem botão de pausa (o do herói tem). */}
+        <Selo className="hidden w-40 rotate-[-8deg] md:block lg:w-48" />
       </div>
     </section>
   );

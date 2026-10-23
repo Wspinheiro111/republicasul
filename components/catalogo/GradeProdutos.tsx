@@ -9,10 +9,12 @@
  * O filtro só age no navegador: o HTML estático sai com TODOS os produtos
  * (bom para o Google e para quem está sem JavaScript). Os chips são botões
  * com aria-pressed; a contagem é anunciada numa região de status.
- * Com "reduzir movimento", a grade troca sem animação.
+ * Ao filtrar, os cartões que ficam só aparecem de leve (opacidade); os que
+ * saem somem na hora. Sem animação de layout: remontar a grade a cada toque
+ * pesava no celular. Com "reduzir movimento", a grade troca sem animação.
  */
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
 import type { Produto } from "../../content/catalogo";
@@ -39,7 +41,7 @@ export default function GradeProdutos({ produtos, filtro = false, mostrarCategor
   const linhas = categoriasComProduto(produtos);
   const visiveis = ativa ? produtos.filter((p) => p.categoria === ativa) : produtos;
   const linhaAtiva = linhas.find((c) => c.slug === ativa);
-  const transicao = reduzir ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] as const };
+  const transicao = reduzir ? { duration: 0 } : { duration: 0.22, ease: "easeOut" as const };
 
   const chip = (pressionado: boolean) =>
     `inline-flex min-h-11 items-center gap-1.5 rounded-[var(--raio)] border px-3 text-[0.95rem] font-medium transition-colors sm:px-3.5 ${
@@ -85,23 +87,22 @@ export default function GradeProdutos({ produtos, filtro = false, mostrarCategor
         </div>
       )}
 
-      <motion.ul role="list" layout={!reduzir} className={`m-0 list-none p-0 ${classeGrade}`} transition={transicao}>
-        <AnimatePresence initial={false} mode="popLayout">
+      <ul role="list" className={`m-0 list-none p-0 ${classeGrade}`}>
+        <AnimatePresence initial={false}>
           {visiveis.map((produto, i) => (
-            <motion.li
+            <m.li
               key={produto.slug}
-              layout={!reduzir}
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.97 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0 } }}
               transition={transicao}
               className="min-w-0"
             >
               <CartaoProduto produto={produto} mostrarCategoria={mostrarCategoria} prioridade={i < 2} />
-            </motion.li>
+            </m.li>
           ))}
         </AnimatePresence>
-      </motion.ul>
+      </ul>
     </div>
   );
 }

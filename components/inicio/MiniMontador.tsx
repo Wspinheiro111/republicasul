@@ -111,12 +111,16 @@ export default function MiniMontador({ className }: { className?: string }) {
 
   return (
     <div className={`grid items-start gap-6 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] md:gap-14 ${className ?? ""}`}>
-      {/* No celular a prévia gruda no topo enquanto a pessoa escolhe as cores logo abaixo. */}
-      <div className="secao-escura trama sticky top-[var(--altura-cabecalho)] z-10 -mx-4 px-4 pb-4 pt-3 sm:-mx-6 sm:px-6 md:static md:mx-0 md:bg-transparent md:bg-none md:p-0">
+      {/*
+        A prévia não gruda no topo no celular: grudada, ela cobria as amostras
+        que recebiam o foco do teclado (o desenho pequeno fica logo acima delas).
+      */}
+      <div className="pb-1 md:p-0">
         <div className="costura mx-auto max-w-[11.5rem] rounded-[var(--raio-grande)] bg-couro-2 px-3 pb-3 pt-0 sm:max-w-[16rem] md:max-w-none md:px-12 md:pb-8 md:pt-0">
           <LencoArte
             padrao={produto.padrao}
             cores={coresLenco}
+            xadrez="graudo"
             titulo={`Desenho do ${produto.nome.toLowerCase()}${descricao ? `, ${descricao.toLowerCase()}` : ""}`}
           />
         </div>
@@ -126,7 +130,7 @@ export default function MiniMontador({ className }: { className?: string }) {
         </p>
       </div>
 
-      <div className="max-md:[&_a]:scroll-mt-[calc(var(--altura-cabecalho)+19rem)] max-md:[&_input]:scroll-mt-[calc(var(--altura-cabecalho)+19rem)]">
+      <div>
         <SeletorOpcoes
           tom="escuro"
           opcoes={[OPCAO_PADRAO, ...opcoesCor]}

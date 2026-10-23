@@ -118,3 +118,85 @@ export function __reiniciarPedido() {
   itens = [];
   carregado = false;
 }
+
+// ------------------------------------------------------------------
+// Anotações por peça
+// ------------------------------------------------------------------
+// O pala não tem cor nem medida para escolher no site: o que o cliente
+// escreve em "Conte o que procura" é o que diz qual pala ele quer. A lista
+// guarda só produto, escolhas e quantidade (ItemPedido), então esse texto
+// fica numa chave à parte, por produto, e a página "Seu pedido" o põe no
+// campo Observação. Como a lista, vale só neste navegador e funciona com o
+// armazenamento bloqueado (só não lembra depois).
+
+const CHAVE_OBSERVACOES = "republicasul:observacoes:v1";
+const LIMITE_TEXTO_ANOTACAO = 400;
+const LIMITE_ANOTACOES_POR_PECA = 10;
+
+let anotacoes: Record<string, string[]> = {};
+let anotacoesCarregadas = false;
+
+function carregarAnotacoes() {
+  if (anotacoesCarregadas || typeof window === "undefined") return;
+  anotacoesCarregadas = true;
+  try {
+    const bruto = window.localStorage.getItem(CHAVE_OBSERVACOES);
+    const lidas = bruto ? (JSON.parse(bruto) as unknown) : {};
+    anotacoes = {};
+    if (lidas && typeof lidas === "object" && !Array.isArray(lidas)) {
+      for (const [produto, textos] of Object.entries(lidas as Record<string, unknown>)) {
+        if (!produtoPorSlug(produto) || !Array.isArray(textos)) continue;
+        const validos = textos.filter((t): t is string => typeof t === "string" && t.trim().length > 0);
+        if (validos.length) anotacoes[produto] = validos.slice(-LIMITE_ANOTACOES_POR_PECA);
+      }
+    }
+  } catch {
+    anotacoes = {};
+  }
+}
+
+function salvarAnotacoes() {
+  try {
+    window.localStorage.setItem(CHAVE_OBSERVACOES, JSON.stringify(anotacoes));
+  } catch {
+    // Armazenamento indisponível: a anotação vale só para esta visita.
+  }
+}
+
+/**
+ * Guarda o que o cliente escreveu sobre uma peça ao adicioná-la à lista.
+ * Texto vazio não guarda nada; o mesmo texto não entra duas vezes.
+ */
+export function anotarObservacao(produto: string, texto: string) {
+  const limpo = texto.replace(/\s+/g, " ").trim().slice(0, LIMITE_TEXTO_ANOTACAO);
+  if (!limpo || !produtoPorSlug(produto)) return;
+  carregarAnotacoes();
+  const atuais = anotacoes[produto] ?? [];
+  if (atuais.some((t) => t.toLowerCase() === limpo.toLowerCase())) return;
+  anotacoes = { ...anotacoes, [produto]: [...atuais, limpo].slice(-LIMITE_ANOTACOES_POR_PECA) };
+  salvarAnotacoes();
+}
+
+/** As anotações guardadas, por produto (slug), na ordem em que foram feitas. */
+export function lerObservacoes(): Record<string, string[]> {
+  carregarAnotacoes();
+  return anotacoes;
+}
+
+/** Apaga as anotações de uma peça, ou todas quando não recebe produto. */
+export function esquecerObservacoes(produto?: string) {
+  carregarAnotacoes();
+  if (produto === undefined) anotacoes = {};
+  else if (anotacoes[produto]) {
+    const resto = { ...anotacoes };
+    delete resto[produto];
+    anotacoes = resto;
+  } else return;
+  salvarAnotacoes();
+}
+
+// Só para testes: volta ao estado inicial das anotações.
+export function __reiniciarObservacoes() {
+  anotacoes = {};
+  anotacoesCarregadas = false;
+}

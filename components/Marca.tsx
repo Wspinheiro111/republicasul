@@ -26,9 +26,10 @@ export function EmblemaLenco({ className }: { className?: string }) {
 export default function Marca({ semLinhaFina = false, className }: { semLinhaFina?: boolean; className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className ?? ""}`}>
-      <EmblemaLenco className="h-8 w-8 md:h-9 md:w-9" />
+      {/* Abaixo de 360px tudo encolhe um pouco: a 320px o botão de menu cabe inteiro na tela. */}
+      <EmblemaLenco className="h-7 w-7 shrink-0 min-[360px]:h-8 min-[360px]:w-8 md:h-9 md:w-9" />
       <span className="flex flex-col leading-none">
-        <span className="font-titulo text-[1.4rem] font-bold tracking-[-0.01em] md:text-[1.55rem]">Republicasul</span>
+        <span className="font-titulo text-[1.15rem] font-bold tracking-[-0.01em] min-[360px]:text-[1.4rem] md:text-[1.55rem]">Republicasul</span>
         {!semLinhaFina && (
           <span className="rotulo mt-1 hidden text-[0.62rem] text-ouro sm:block" style={{ letterSpacing: "0.22em" }}>
             Lenços e palas

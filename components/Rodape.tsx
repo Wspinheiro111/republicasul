@@ -28,7 +28,7 @@ export default function Rodape() {
       <div aria-hidden="true" className="linha-de-ponto" />
       <div className="conteudo grid gap-10 py-14 md:grid-cols-[1.4fr_1fr_1fr] md:gap-12 md:py-16">
         <div className="max-w-md">
-          <Link href="/" className="inline-block no-underline" aria-label="Republicasul, página inicial">
+          <Link href="/" className="inline-flex min-h-11 items-center no-underline" aria-label="Republicasul, página inicial">
             <Marca />
           </Link>
           <p className="mt-5 text-creme-2">{empresa.assinatura}</p>

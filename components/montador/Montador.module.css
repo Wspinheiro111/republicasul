@@ -29,10 +29,12 @@
 
 /*
  * No celular o palco fica grudado no topo enquanto a pessoa escolhe. O que
- * recebe foco no painel desce o suficiente para não ficar escondido atrás dele.
+ * recebe foco no painel desce o suficiente para não ficar escondido atrás
+ * dele: --altura-palco é medida no Montador.tsx (ResizeObserver). Em tela
+ * baixa (até 640px de altura) o palco não gruda, e a margem não é precisa.
  */
-@media (max-width: 1023.98px) {
+@media (max-width: 1023.98px) and (min-height: 641px) {
   .painel :is(input, button, a, textarea, select, [tabindex]) {
-    scroll-margin-top: calc(var(--altura-cabecalho) + 12rem);
+    scroll-margin-top: calc(var(--altura-cabecalho) + var(--altura-palco, 11rem) + 1rem);
   }
 }

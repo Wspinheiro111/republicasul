@@ -18,19 +18,19 @@
  * está na tela ao carregar fica parado. Com "reduzir movimento" não anima nada.
  */
 
-import { motion, useInView, useReducedMotion } from "framer-motion";
+import { m, useInView, useReducedMotion } from "framer-motion";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 const usarEfeitoAntesDaPintura = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const elementos = {
-  div: motion.div,
-  section: motion.section,
-  article: motion.article,
-  li: motion.li,
-  header: motion.header,
-  figure: motion.figure,
-  span: motion.span,
+  div: m.div,
+  section: m.section,
+  article: m.article,
+  li: m.li,
+  header: m.header,
+  figure: m.figure,
+  span: m.span,
 };
 
 export type RevelarProps = {
@@ -56,7 +56,7 @@ export default function Revelar({ children, className, como = "div", atraso = 0,
     if (el.getBoundingClientRect().top > window.innerHeight * 0.95) setEsperando(true);
   }, [reduzir]);
 
-  const Elemento = elementos[como] as typeof motion.div;
+  const Elemento = elementos[como] as typeof m.div;
   const escondido = esperando && !visto && !reduzir;
 
   return (

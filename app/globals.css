@@ -130,9 +130,15 @@
   main * {
     scroll-margin-top: calc(var(--altura-cabecalho) + 1.25rem);
   }
+  /*
+   * No celular, a barra fixa de baixo cobre o fim da tela. O scroll-padding
+   * de baixo (só de baixo) vale para qualquer foco da página, inclusive o
+   * rodapé, que fica fora do <main>. Não mexe no topo, então focar algo do
+   * cabeçalho fixo não faz a página pular.
+   */
   @media (max-width: 767px) {
-    main * {
-      scroll-margin-bottom: calc(var(--altura-barra-celular) + env(safe-area-inset-bottom) + 0.75rem);
+    html {
+      scroll-padding-bottom: calc(var(--altura-barra-celular) + env(safe-area-inset-bottom) + 0.75rem);
     }
   }
   header [id],
@@ -493,6 +499,34 @@
 .selo-girando {
   animation: girar-selo 48s linear infinite;
 }
+/* O botão de pausa do herói também para o selo que gira junto do lenço. */
+[data-pausado] .selo-girando {
+  animation-play-state: paused;
+}
+
+/*
+ * Balanço do lenço desenhado (LencoArte animado). CSS puro: roda no
+ * compositor, sem o JavaScript reescrever o transform a cada quadro, e já
+ * começa na primeira pintura. A classe sai quando o balanço é pausado.
+ */
+@keyframes balanco-lenco {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  25% {
+    transform: rotate(1.5deg) translateY(3px);
+  }
+  75% {
+    transform: rotate(-1.5deg) translateY(3px);
+  }
+}
+.lenco-balanco {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
+  animation: balanco-lenco 8s ease-in-out infinite;
+}
 
 /* ------------------------------------------------------------------ */
 /* Movimento reduzido e impressão                                      */
@@ -506,6 +540,10 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .lenco-balanco,
+  .selo-girando {
+    animation: none !important;
   }
 }
 

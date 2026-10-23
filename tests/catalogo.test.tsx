@@ -18,16 +18,19 @@ import {
   lerEscolhasDaUrl,
   mensagemPedidoDireto,
   outrosProdutos,
+  passosDaCompra,
+  semCorRepetida,
   SEM_PRECO,
   textoPreco,
+  tituloDaLinha,
   variacoesDaCategoria,
 } from "../components/catalogo/funcoes";
 import GaleriaFotos from "../components/catalogo/GaleriaFotos";
 import GradeProdutos from "../components/catalogo/GradeProdutos";
 import PainelProduto from "../components/catalogo/PainelProduto";
-import { jsonLdProduto } from "../components/catalogo/seo";
-import { categorias, escolhasPadrao, produtoPorSlug, produtos, type Produto } from "../content/catalogo";
-import { __reiniciarPedido, lerItens } from "../lib/pedido";
+import { descricaoCategoria, jsonLdProduto, temPrecoConfirmado } from "../components/catalogo/seo";
+import { categoriaPorSlug, categorias, coresDasEscolhas, escolhasPadrao, produtoPorSlug, produtos, type Produto } from "../content/catalogo";
+import { __reiniciarObservacoes, __reiniciarPedido, lerItens, lerObservacoes } from "../lib/pedido";
 import { linkWhatsApp, mensagemProduto } from "../lib/whatsapp";
 
 const carijoDuas = produtoPorSlug("lenco-carijo-duas-cores")!;
@@ -46,6 +49,7 @@ function linkPedirAgora() {
 beforeEach(() => {
   window.localStorage.clear();
   __reiniciarPedido();
+  __reiniciarObservacoes();
   irPara("/");
 });
 
@@ -87,6 +91,48 @@ describe("funções do catálogo", () => {
       "https://www.republicasul.com.br/produto/lenco-carijo-duas-cores/?utm_source=insta&cor-1=velho#topo",
     );
     expect(caminho).toBe("/produto/lenco-carijo-duas-cores/?utm_source=insta&cor-1=azul&cor-2=branco&medida=especial#topo");
+  });
+
+  it("as duas cores do carijó nunca ficam iguais (URL e troca de cor)", () => {
+    // Pela URL: a segunda cor anda para a primeira cor livre.
+    const daUrl = lerEscolhasDaUrl(carijoDuas, "?cor-1=azul&cor-2=azul");
+    expect(daUrl["cor-1"]).toBe("azul");
+    expect(daUrl["cor-2"]).not.toBe("azul");
+    // Na troca: quem mudou fica, a outra opção anda.
+    const padrao = escolhasPadrao(carijoDuas);
+    const trocada = semCorRepetida(carijoDuas, { ...padrao, "cor-2": padrao["cor-1"] }, "cor-2");
+    expect(trocada["cor-2"]).toBe(padrao["cor-1"]);
+    expect(trocada["cor-1"]).not.toBe(padrao["cor-1"]);
+    // Sem repetição, devolve o mesmo objeto; produto com uma cor só não muda.
+    expect(semCorRepetida(carijoDuas, padrao)).toBe(padrao);
+    expect(semCorRepetida(carijoUma, escolhasPadrao(carijoUma))).toEqual(escolhasPadrao(carijoUma));
+  });
+
+  it("título da linha no plural só onde o nome da linha é o do produto", () => {
+    expect(tituloDaLinha(categoriaPorSlug("carijo-uma-cor")!)).toBe("Lenços carijó de uma cor");
+    expect(tituloDaLinha(categoriaPorSlug("carijo-duas-cores")!)).toBe("Lenços carijó de duas cores");
+    expect(tituloDaLinha(categoriaPorSlug("farroupilha")!)).toBe("Lenços farroupilha");
+    expect(tituloDaLinha(categoriaPorSlug("lencos-tradicionais")!)).toBe("Lenços tradicionais");
+    for (const c of categorias) {
+      const unico = produtos.filter((p) => p.categoria === c.slug);
+      if (unico.length === 1) expect(tituloDaLinha(c).toLowerCase()).not.toBe(unico[0].nome.toLowerCase());
+    }
+  });
+
+  it("os três passos da compra começam pelo que a peça tem para escolher", () => {
+    expect(passosDaCompra(carijoUma)[0]).toBe("Escolha cor do xadrez, medida e quantidade.");
+    expect(passosDaCompra(pala)[0]).toBe("Escolha a quantidade e conte o modelo e a cor que procura.");
+    expect(passosDaCompra(pala)).toHaveLength(3);
+  });
+
+  it("descrições de busca curtas, com a peça e o WhatsApp antes do corte", () => {
+    for (const c of categorias) {
+      const d = descricaoCategoria(c);
+      expect(d.length, c.slug).toBeLessThanOrEqual(155);
+      expect(d).toContain("WhatsApp");
+    }
+    expect(temPrecoConfirmado(maragato)).toBe(false);
+    expect(temPrecoConfirmado({ ...maragato, preco: 99.5 })).toBe(true);
   });
 
   it("a mensagem do pala fala em pala, e a dos lenços em lenço", () => {
@@ -172,6 +218,18 @@ describe("PainelProduto", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Agora são 4 peças desta escolha no pedido.");
   });
 
+  it("escolher na segunda cor a mesma da primeira faz a primeira andar", () => {
+    render(<PainelProduto produto={carijoDuas} topo={null} />);
+    const padrao = escolhasPadrao(carijoDuas);
+    const nomeDe = (opcao: string, id: string) => carijoDuas.opcoes.find((o) => o.id === opcao)!.valores.find((v) => v.id === id)!.nome;
+    const nomePrimeira = nomeDe("cor-1", padrao["cor-1"]);
+    fireEvent.click(within(screen.getByRole("group", { name: /Segunda cor/ })).getByRole("radio", { name: nomePrimeira }));
+    expect(within(screen.getByRole("group", { name: /Segunda cor/ })).getByRole("radio", { name: nomePrimeira })).toBeChecked();
+    expect(within(screen.getByRole("group", { name: /Primeira cor/ })).getByRole("radio", { name: nomePrimeira })).not.toBeChecked();
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("cor-1")).not.toBe(params.get("cor-2"));
+  });
+
   it("escolhas vão para a URL e são lidas dela ao abrir", () => {
     irPara("/produto/lenco-carijo-duas-cores/?cor-1=amarelo&medida=especial&utm_source=teste");
     render(<PainelProduto produto={carijoDuas} topo={null} />);
@@ -217,7 +275,28 @@ describe("PainelProduto", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Adicionar ao pedido" }));
     expect(lerItens()).toEqual([{ produto: "pala", escolhas: {}, quantidade: 2 }]);
+    // O texto não se perde: fica guardado para a Observação da página do pedido.
+    expect(screen.getByRole("status")).toHaveTextContent("O que você escreveu vai na observação do seu pedido.");
+    expect(lerObservacoes()).toEqual({ pala: ["Pala marrom com listras"] });
+
+    // Outro pala, com outro texto: o aviso fala em palas na lista (não "desta escolha").
+    fireEvent.change(screen.getByLabelText("Conte o que procura"), { target: { value: "Pala preto" } });
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar ao pedido" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Agora são 4 palas na lista.");
+    expect(screen.getByRole("status")).not.toHaveTextContent("desta escolha");
+    expect(lerObservacoes()).toEqual({ pala: ["Pala marrom com listras", "Pala preto"] });
+  });
+
+  it("peça com opções: a observação abre num botão no celular e não vai para as anotações", () => {
+    render(<PainelProduto produto={maragato} topo={null} />);
+    const abrir = screen.getByRole("button", { name: "Escrever uma observação (opcional)" });
+    expect(abrir).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(abrir);
+    const campo = screen.getByLabelText("Observação (opcional)");
+    fireEvent.change(campo, { target: { value: "Medida para criança" } });
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar ao pedido" }));
     expect(screen.getByRole("status")).toHaveTextContent("A observação não fica na lista");
+    expect(lerObservacoes()).toEqual({});
   });
 
   it("os links do WhatsApp registram o clique com a origem e o produto", () => {
@@ -258,6 +337,16 @@ describe("CartaoProduto", () => {
     render(<CartaoProduto produto={comPreco} />);
     expect(screen.getByText(/R\$\s120,00/)).toBeInTheDocument();
     expect(screen.queryByText("Valor pelo WhatsApp")).toBeNull();
+  });
+
+  it("o desenho e o 'Vai com' mostram as cores que vão para o pedido", () => {
+    render(<CartaoProduto produto={carijoDuas} />);
+    const padrao = escolhasPadrao(carijoDuas);
+    expect(screen.getByTestId("vai-com")).toHaveTextContent("Vai com: vermelho e azul");
+    expect(screen.getByRole("img", { name: /Lenço carijó duas cores em vermelho e azul/ })).toBeInTheDocument();
+    const [cor1, cor2] = coresDasEscolhas(carijoDuas, padrao);
+    expect(document.body.innerHTML).toContain(cor1);
+    expect(document.body.innerHTML).toContain(cor2);
   });
 
   it("botão rápido adiciona com as escolhas padrão e mostra 'Adicionado'", () => {
@@ -371,7 +460,8 @@ describe("página /catalogo/[categoria]/", () => {
 
   it("metadados únicos com título, resumo e canonical", async () => {
     const meta = await moduloCategoria.generateMetadata({ params: Promise.resolve({ categoria: "carijo-uma-cor" }) });
-    expect(meta.title).toBe("Lenço carijó uma cor");
+    // Título no plural: não disputa a busca com a página do produto "Lenço carijó uma cor".
+    expect(meta.title).toBe("Lenços carijó de uma cor");
     expect(meta.description).toContain("Fundo claro com o xadrez miúdo de uma cor.");
     expect(meta.alternates?.canonical).toBe("/catalogo/carijo-uma-cor/");
   });
@@ -392,6 +482,27 @@ describe("página /catalogo/[categoria]/", () => {
     delete window.gtag;
   });
 
+  it("linha de uma peça só: título no plural, passos da compra e link para a peça", async () => {
+    render(await PaginaCategoria({ params: Promise.resolve({ categoria: "carijo-duas-cores" }) }));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Lenços carijó de duas cores");
+    const trilha = screen.getByRole("navigation", { name: "Trilha" });
+    expect(within(trilha).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Início", "Lenços", "Lenços carijó de duas cores"]);
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "Como funciona a compra" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ver a peça e escolher as cores" }).getAttribute("href")).toMatch(/^\/produto\/lenco-carijo-duas-cores\/?$/);
+  });
+
+  it("palas: a ajuda pede modelo e cor (o pala não tem cor nem medida para escolher)", async () => {
+    render(await PaginaCategoria({ params: Promise.resolve({ categoria: "palas" }) }));
+    expect(screen.getByRole("heading", { name: "Conte o modelo e a cor do pala que você procura" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Não achou a cor ou a medida/ })).toBeNull();
+    const whats = screen.getAllByRole("link", { name: /Chamar no WhatsApp/ }).find((a) => a.getAttribute("data-origem") === "categoria")!;
+    const texto = decodeURIComponent(whats.getAttribute("href")!);
+    expect(texto).toContain("quero saber dos modelos e cores");
+    expect(texto).not.toContain("a cor ou a medida");
+    expect(screen.getByRole("link", { name: "Abrir a página da peça" }).getAttribute("href")).toMatch(/^\/produto\/pala\/?$/);
+  });
+
   it("categoria que não existe vira 404", async () => {
     await expect(PaginaCategoria({ params: Promise.resolve({ categoria: "nao-existe" }) })).rejects.toThrow("NEXT_NOT_FOUND");
   });
@@ -406,7 +517,10 @@ describe("página /produto/[slug]/", () => {
   it("metadados únicos com resumo, canonical e openGraph", async () => {
     const meta = await moduloProduto.generateMetadata({ params: Promise.resolve({ slug: "lenco-farroupilha" }) });
     expect(meta.title).toBe("Lenço farroupilha");
-    expect(meta.description).toBe("Verde, vermelho e amarelo da bandeira rio-grandense. Monte o pedido e fale pelo WhatsApp.");
+    // Parte da descrição da peça (que diz qual é a peça) e chama para o WhatsApp uma vez só.
+    expect(meta.description).toBe("O lenço com as cores da bandeira do Rio Grande do Sul. Monte o pedido e fale pelo WhatsApp.");
+    const metaPala = await moduloProduto.generateMetadata({ params: Promise.resolve({ slug: "pala" }) });
+    expect(String(metaPala.description).match(/WhatsApp/g)?.length ?? 0).toBeLessThanOrEqual(1);
     expect(meta.alternates?.canonical).toBe("/produto/lenco-farroupilha/");
     expect(meta.openGraph).toMatchObject({ url: "/produto/lenco-farroupilha/", locale: "pt_BR", title: "Lenço farroupilha | Republicasul" });
   });
@@ -435,18 +549,31 @@ describe("página /produto/[slug]/", () => {
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Lenço carijó uma cor");
     const trilha = screen.getByRole("navigation", { name: "Trilha" });
-    // A linha tem o mesmo nome do produto: não se repete na trilha.
-    expect(within(trilha).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Início", "Lenços", "Lenço carijó uma cor"]);
+    // A linha entra na trilha (no plural) com link: a peça aponta de volta para a página da linha.
+    expect(within(trilha).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "Início",
+      "Lenços",
+      "Lenços carijó de uma cor",
+      "Lenço carijó uma cor",
+    ]);
+    expect(within(trilha).getByRole("link", { name: "Lenços carijó de uma cor" }).getAttribute("href")).toMatch(/^\/catalogo\/carijo-uma-cor\/?$/);
     const jsonLd = Array.from(container.querySelectorAll('script[type="application/ld+json"]')).map((s) => JSON.parse(s.textContent!));
-    const produtoLd = jsonLd.find((d) => d["@type"] === "Product");
-    expect(produtoLd).toBeDefined();
-    expect(produtoLd).not.toHaveProperty("offers");
+    // Sem preço confirmado não sai o Product (sem offers ele é inválido para o Google); a trilha continua.
+    expect(jsonLd.find((d) => d["@type"] === "Product")).toBeUndefined();
+    expect(jsonLd.find((d) => d["@type"] === "BreadcrumbList")).toBeDefined();
+    // Linha de uma peça só: a descrição da linha não se repete em "Sobre esta peça".
+    expect(screen.queryByText(categoriaPorSlug("carijo-uma-cor")!.descricao)).toBeNull();
     expect(screen.getByRole("heading", { name: "Como funciona a compra" })).toBeInTheDocument();
     expect(screen.getByText("Escolha cor do xadrez, medida e quantidade.")).toBeInTheDocument();
     const outros = screen.getByRole("heading", { name: "Outros lenços" }).closest("section")!;
     expect(within(outros).getAllByRole("article")).toHaveLength(4);
     expect(within(outros).queryByText("Lenço carijó uma cor", { selector: "a" })).toBeNull();
     expect(screen.getByRole("link", { name: /Pedir agora no WhatsApp/ })).toBeInTheDocument();
+  });
+
+  it("na linha com várias peças, 'Sobre esta peça' traz também a descrição da linha", async () => {
+    render(await PaginaProduto({ params: Promise.resolve({ slug: "lenco-tradicional-maragato" }) }));
+    expect(screen.getByText(categoriaPorSlug("lencos-tradicionais")!.descricao)).toBeInTheDocument();
   });
 
   it("produto que não existe vira 404", async () => {

@@ -47,8 +47,9 @@ function Campo({ id, rotulo, obrigatorio = false, dica, erro, children }: CampoP
   const idDica = dica ? `${id}-dica` : undefined;
   const idErro = erro ? `${id}-erro` : undefined;
   const descricao = [idDica, idErro].filter(Boolean).join(" ") || undefined;
-  const classe = `w-full rounded-[var(--raio)] border bg-creme px-3.5 py-3 text-[1.0625rem] text-tinta placeholder:text-tinta/45 ${
-    erro ? "border-maragato border-2" : "border-tinta/35 hover:border-tinta/60"
+  // Borda tinta/55 (3:1 ou mais contra o creme) e placeholder tinta/70 (4,5:1 ou mais).
+  const classe = `w-full rounded-[var(--raio)] border bg-creme px-3.5 py-3 text-[1.0625rem] text-tinta placeholder:text-tinta/70 ${
+    erro ? "border-maragato border-2" : "border-tinta/55 hover:border-tinta/75"
   }`;
   return (
     <div className="flex flex-col gap-1.5">

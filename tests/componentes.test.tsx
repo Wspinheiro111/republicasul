@@ -6,13 +6,16 @@ vi.mock("next/navigation", () => ({
 }));
 
 import BotaoWhatsApp from "../components/BotaoWhatsApp";
+import BarraCelular from "../components/BarraCelular";
 import Cabecalho from "../components/Cabecalho";
+import FaixaPrevia from "../components/FaixaPrevia";
 import LencoArte, { LencoCiclo } from "../components/LencoArte";
 import Quantidade from "../components/Quantidade";
 import SeletorOpcoes from "../components/SeletorOpcoes";
 import Selo from "../components/Selo";
 import Trilha from "../components/Trilha";
 import { escolhasPadrao, produtoPorSlug } from "../content/catalogo";
+import { contato, PREVIA } from "../content/site";
 import { __reiniciarPedido, adicionarItem } from "../lib/pedido";
 import { linkWhatsApp } from "../lib/whatsapp";
 
@@ -183,6 +186,59 @@ describe("Cabecalho", () => {
     expect(document.getElementById("menu-celular")).toBeVisible();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(botao).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("com o menu aberto, o resto da página fica inert; ao fechar, volta", () => {
+    const main = document.createElement("main");
+    const rodape = document.createElement("footer");
+    const barra = document.createElement("nav");
+    barra.setAttribute("data-barra-celular", "");
+    document.body.append(main, rodape, barra);
+    try {
+      render(<Cabecalho />);
+      fireEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
+      for (const el of [main, rodape, barra]) expect(el.inert).toBe(true);
+      // O item da página atual não se marca só pela cor.
+      const menu = screen.getByRole("navigation", { name: "Menu" });
+      const atual = menu.querySelector('[aria-current="page"] span');
+      expect(atual?.className).toContain("underline");
+      fireEvent.keyDown(document, { key: "Escape" });
+      for (const el of [main, rodape, barra]) expect(el.inert).toBe(false);
+    } finally {
+      main.remove();
+      rodape.remove();
+      barra.remove();
+    }
+  });
+
+  it("o leitor de tela ouve o total só quando ele muda, não ao abrir a página", () => {
+    adicionarItem({ produto: "pala", escolhas: {}, quantidade: 2 });
+    render(<Cabecalho />);
+    const regiao = document.querySelector("header [aria-live]")!;
+    expect(regiao.textContent).toBe("");
+    act(() => {
+      adicionarItem({ produto: "pala", escolhas: {}, quantidade: 1 });
+    });
+    expect(regiao.textContent).toBe("Seu pedido tem 3 peças.");
+  });
+});
+
+describe("BarraCelular e FaixaPrevia", () => {
+  it("a barra do celular é uma região de navegação com nome", () => {
+    render(<BarraCelular />);
+    const barra = screen.getByRole("navigation", { name: "Atalhos do pedido" });
+    expect(barra).toHaveAttribute("data-barra-celular");
+  });
+
+  it("a faixa de prévia é um aside e avisa quando o WhatsApp não tem número", () => {
+    render(<FaixaPrevia />);
+    if (!PREVIA) {
+      expect(screen.queryByRole("complementary")).toBeNull();
+      return;
+    }
+    const faixa = screen.getByRole("complementary", { name: "Aviso de prévia" });
+    if (contato.whatsapp) expect(faixa).not.toHaveTextContent("ainda não está ligado");
+    else expect(faixa).toHaveTextContent("O WhatsApp ainda não está ligado ao número da loja.");
   });
 });
 

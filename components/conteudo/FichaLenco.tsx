@@ -35,7 +35,7 @@ export default function FichaLenco({ padrao, cores, nome, texto, tituloArte, lin
     >
       {/* No celular o cartão fica deitado (desenho à esquerda); do sm para cima, em pé. */}
       <div className="w-28 shrink-0 sm:mx-auto sm:w-full sm:max-w-[13rem]">
-        <LencoArte padrao={padrao} cores={cores} titulo={tituloArte} />
+        <LencoArte padrao={padrao} cores={cores} titulo={tituloArte} xadrez="graudo" mostrarFranja={false} />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <Titulo className="titulo-3 text-creme sm:mt-4">{nome}</Titulo>

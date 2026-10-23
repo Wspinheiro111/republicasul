@@ -79,7 +79,14 @@ export default function LencoHeroi({ variacoes = CORES_HEROI, intervalo = INTERV
   };
 
   return (
-    <div ref={ref} className={`relative ${className ?? ""}`} onFocus={() => setInteragindo(true)} onBlur={aoSairFoco}>
+    // data-pausado: o botão de pausa também para o selo que gira junto (app/globals.css).
+    <div
+      ref={ref}
+      className={`relative ${className ?? ""}`}
+      data-pausado={pausado || undefined}
+      onFocus={() => setInteragindo(true)}
+      onBlur={aoSairFoco}
+    >
       <figure className="m-0">
         <div className="relative">
           <LencoArte

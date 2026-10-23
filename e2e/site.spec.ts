@@ -199,3 +199,87 @@ test("as URLs antigas .php estão no vercel.json e levam a páginas que existem"
   // Nenhuma regra sobrando no vercel.json que não venha de content/site.ts.
   expect(vercel.redirects.map((r) => r.source).sort()).toEqual(legados.map(([origem]) => origem).sort());
 });
+
+// ------------------------------------------------------------------
+// Celular: primeira tela e foco do teclado
+// ------------------------------------------------------------------
+
+/** Descreve o foco atual quando ele está na tela, mas coberto pela barra fixa ou pelo palco grudado do montador. */
+async function focoEscondido(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el || el === document.body) return null;
+    let caixa = el.getBoundingClientRect();
+    // Rádio escondido (sr-only): vale o rótulo, que é o que aparece.
+    if (caixa.width <= 2 || caixa.height <= 2) {
+      const rotulo = el.closest("label");
+      if (rotulo) caixa = rotulo.getBoundingClientRect();
+    }
+    const x = caixa.left + caixa.width / 2;
+    const y = caixa.top + caixa.height / 2;
+    if (y < 0 || y > window.innerHeight) return null;
+    const ponto = document.elementFromPoint(x, y);
+    const cobre = ponto?.closest("[data-barra-celular], section[aria-label='Prévia do lenço']");
+    if (cobre && !cobre.contains(el)) return `${el.tagName} "${(el.getAttribute("aria-label") ?? el.textContent ?? "").trim().slice(0, 40)}" em y=${Math.round(y)}`;
+    return null;
+  });
+}
+
+test("no celular, os botões do herói aparecem na primeira tela, acima da barra fixa", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1440) >= 768, "só no celular");
+  await abrir(page, "/");
+  const heroi = page.locator("section[aria-labelledby='inicio-titulo']");
+  const botao = await heroi.getByRole("link", { name: "Ver os lenços" }).boundingBox();
+  const barra = await page.locator("[data-barra-celular]").boundingBox();
+  expect(botao).not.toBeNull();
+  expect(barra).not.toBeNull();
+  expect(botao!.y + botao!.height).toBeLessThanOrEqual(barra!.y);
+});
+
+test("no celular, o foco do teclado não fica atrás da barra fixa nem do palco do montador", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1440) >= 768, "só no celular");
+  test.setTimeout(90_000);
+  // Sem rolagem suave: a posição já vale logo depois da tecla.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const rota of ["/montador/", "/produto/lenco-carijo-duas-cores/", "/lojistas/"]) {
+    await abrir(page, rota);
+    const escondidos: string[] = [];
+    for (let i = 0; i < 40; i++) {
+      await page.keyboard.press("Tab");
+      const escondido = await focoEscondido(page);
+      if (escondido) escondidos.push(escondido);
+    }
+    expect(escondidos, `${rota} (Tab)`).toEqual([]);
+  }
+
+  // Montador, voltando com Shift+Tab a partir do fim do painel (o palco gruda no topo).
+  await abrir(page, "/montador/");
+  await page.getByRole("button", { name: "Copiar link desta combinação" }).focus();
+  const escondidos: string[] = [];
+  for (let i = 0; i < 14; i++) {
+    await page.keyboard.press("Shift+Tab");
+    const escondido = await focoEscondido(page);
+    if (escondido) escondidos.push(escondido);
+  }
+  expect(escondidos, "/montador/ (Shift+Tab)").toEqual([]);
+});
+
+test("no celular, o pedido tem o envio sempre à mão", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1440) >= 768, "só no celular");
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "republicasul:pedido:v1",
+      JSON.stringify([
+        { produto: "lenco-carijo-uma-cor", escolhas: { cor: "azul", medida: "padrao" }, quantidade: 2 },
+        { produto: "lenco-tradicional-maragato", escolhas: { medida: "especial" }, quantidade: 1 },
+      ]),
+    );
+  });
+  await abrir(page, "/pedido/");
+  const barra = page.getByRole("region", { name: "Envio rápido do pedido" });
+  await expect(barra).toBeVisible();
+  const envio = barra.getByRole("link", { name: /Enviar pedido \(3 peças\)/ });
+  await expect(envio).toBeInViewport();
+  const href = (await envio.getAttribute("href")) ?? "";
+  expect(decodeURIComponent(href)).toContain("Total de peças: 3");
+});
