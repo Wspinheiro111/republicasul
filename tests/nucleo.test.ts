@@ -4,7 +4,7 @@ import { redirecionamentosLegados } from "../content/site";
 import { linkWhatsApp, mensagemLojista, mensagemPedido, mensagemProduto } from "../lib/whatsapp";
 import { __reiniciarPedido, adicionarItem, alterarQuantidade, lerItens, removerItem, totalDePecas } from "../lib/pedido";
 import { contato, PREVIA } from "../content/site";
-import { __reiniciarObservacoes, anotarObservacao, esquecerObservacoes, lerObservacoes } from "../lib/pedido";
+import { __reiniciarObservacoes, anotarObservacao, esquecerObservacao, esquecerObservacoes, lerObservacoes } from "../lib/pedido";
 
 describe("catálogo", () => {
   it("tem slugs únicos e toda categoria de produto existe", () => {
@@ -60,6 +60,16 @@ describe("mensagens do WhatsApp", () => {
     expect(texto).toContain("Total de peças: 4");
     expect(texto).toContain("Nome: Ana");
     expect(texto).not.toContain("nao-existe");
+  });
+
+  it("o que o cliente escreveu sobre a peça vai dentro do item, e só da peça que está na lista", () => {
+    const texto = mensagemPedido([{ produto: "pala", escolhas: {}, quantidade: 2 }], { observacao: "Entregar em Bagé" }, {
+      pala: ["pala preto", "pala branco"],
+      "lenco-farroupilha": ["não está na lista"],
+    });
+    expect(texto).toContain("1) Pala\n   Quantidade: 2\n   Observação: pala preto; pala branco\n");
+    expect(texto).toContain("\nObservação: Entregar em Bagé");
+    expect(texto).not.toContain("não está na lista");
   });
 
   it("codifica o texto no link", () => {
@@ -136,12 +146,28 @@ describe("anotações por peça", () => {
     expect(lerObservacoes()).toEqual({ pala: ["pala preto"] });
     esquecerObservacoes("pala");
     expect(lerObservacoes()).toEqual({});
+    // Outra aba gravou anotações: esta lê de novo em vez de ficar com a cópia velha.
+    window.localStorage.setItem("republicasul:observacoes:v1", JSON.stringify({ pala: ["de outra aba"] }));
+    window.dispatchEvent(new StorageEvent("storage", { key: "republicasul:observacoes:v1" }));
+    expect(lerObservacoes()).toEqual({ pala: ["de outra aba"] });
+    esquecerObservacoes("pala");
 
     window.localStorage.setItem("republicasul:observacoes:v1", "{\"pala\": [3, \"ok\"], \"x\": [\"y\"]}");
     __reiniciarObservacoes();
     expect(lerObservacoes()).toEqual({ pala: ["ok"] });
     window.localStorage.setItem("republicasul:observacoes:v1", "não é json");
     __reiniciarObservacoes();
+    expect(lerObservacoes()).toEqual({});
+  });
+
+  it("apaga uma anotação só, e a peça some quando não sobra nenhuma", () => {
+    anotarObservacao("pala", "pala preto");
+    anotarObservacao("pala", "pala branco");
+    esquecerObservacao("pala", "não existe");
+    esquecerObservacao("pala", "pala preto");
+    expect(lerObservacoes()).toEqual({ pala: ["pala branco"] });
+    expect(JSON.parse(window.localStorage.getItem("republicasul:observacoes:v1")!)).toEqual({ pala: ["pala branco"] });
+    esquecerObservacao("pala", "pala branco");
     expect(lerObservacoes()).toEqual({});
   });
 

@@ -15,8 +15,11 @@
  * - No celular, uma barra fixa "Enviar pedido (n peças)" (a BarraCelular some
  *   nesta página), para o envio não ficar só no fim da página.
  * - O que o cliente escreveu no "Conte o que procura" do pala (anotações de
- *   lib/pedido) já vem no campo Observação. Remover a peça tira a linha dela
- *   da Observação e esquece a anotação; "Desfazer" devolve as duas.
+ *   lib/pedido, useObservacoes) aparece junto do item e vai dentro dele na
+ *   mensagem; acompanha também o que muda em outra aba. O campo Observação é
+ *   só do cliente. A lixeira ao lado de cada anotação a apaga. Remover a última
+ *   peça esquece a anotação; "Desfazer" a devolve. Ao abrir a página, anotações
+ *   de peças fora da lista são esquecidas.
  * - Lista vazia: EstadoVazio.
  */
 
@@ -28,11 +31,13 @@ import { contato } from "../../content/site";
 import {
   alterarQuantidade,
   anotarObservacao,
+  esquecerObservacao,
   esquecerObservacoes,
   lerItens,
   lerObservacoes,
   removerItem,
   totalDePecas,
+  useObservacoes,
   usePedido,
 } from "../../lib/pedido";
 import { mensagemPedido, type DadosCliente, type ItemPedido } from "../../lib/whatsapp";
@@ -52,42 +57,9 @@ const LIMITE_OBSERVACAO = 500;
 
 /**
  * O item que acabou de sair, para o "Desfazer". Se era a última peça daquele
- * produto, leva junto as anotações dele e, se a Observação tinha a linha
- * delas, a linha e a posição de onde saiu.
+ * produto, leva junto o que o cliente tinha escrito sobre ela (anotações).
  */
-type Removido = {
-  item: ItemPedido;
-  indice: number;
-  vez: number;
-  anotacoes: string[];
-  linhaObservacao?: { texto: string; posicao: number };
-};
-
-/** "Pala: crioulo marrom; preto": a linha de uma peça no campo Observação. */
-function linhaDaAnotacao(slug: string, textos: string[]): string {
-  const produto = produtoPorSlug(slug);
-  return produto && textos.length ? `${produto.nome}: ${textos.join("; ")}` : "";
-}
-
-/**
- * Observação inicial a partir das anotações das peças que estão na lista
- * ("Pala: crioulo marrom; preto"). Anotações de peças que já saíram da
- * lista são esquecidas.
- */
-function observacaoDasAnotacoes(itens: ItemPedido[]): string {
-  const naLista = new Set(itens.map((i) => i.produto));
-  const anotacoes = lerObservacoes();
-  const linhas: string[] = [];
-  for (const [slug, textos] of Object.entries(anotacoes)) {
-    if (!naLista.has(slug)) {
-      esquecerObservacoes(slug);
-      continue;
-    }
-    const linha = linhaDaAnotacao(slug, textos);
-    if (linha) linhas.push(linha);
-  }
-  return linhas.join("\n");
-}
+type Removido = { item: ItemPedido; indice: number; vez: number; anotacoes: string[] };
 
 /**
  * A prévia mostra cada linha da mensagem num bloco. As linhas que começam
@@ -187,6 +159,7 @@ export default function ListaPedido() {
   const base = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const montado = useMontado();
   const itens = usePedido();
+  const anotacoes = useObservacoes();
   const [cliente, setCliente] = useState<Required<DadosCliente>>({ nome: "", cidade: "", observacao: "" });
   const [removido, setRemovido] = useState<Removido | null>(null);
   const [segurando, setSegurando] = useState(false);
@@ -199,13 +172,14 @@ export default function ListaPedido() {
 
   const temItens = itens.length > 0;
 
-  // Ao abrir a página: o que o cliente anotou nas peças sem opções (o pala) entra na Observação.
-  const observacaoPreenchida = useRef(false);
+  // Ao abrir a página: anotações de peças que já saíram da lista (de outra
+  // visita) são esquecidas. Depois não precisa: anotação de peça fora da lista
+  // não aparece nem vai na mensagem, e quem remove a peça (aqui ou em outra
+  // aba) já esquece a dela.
   useEffect(() => {
-    if (!montado || observacaoPreenchida.current) return;
-    observacaoPreenchida.current = true;
-    const texto = observacaoDasAnotacoes(lerItens());
-    if (texto) setCliente((c) => (c.observacao ? c : { ...c, observacao: texto }));
+    if (!montado) return;
+    const naLista = new Set(lerItens().map((i) => i.produto));
+    for (const slug of Object.keys(lerObservacoes())) if (!naLista.has(slug)) esquecerObservacoes(slug);
   }, [montado]);
 
   // O "Desfazer" some sozinho depois de alguns segundos (o mouse por cima segura).
@@ -236,30 +210,19 @@ export default function ListaPedido() {
   if (!montado) return <Carregando />;
 
   const total = totalDePecas(itens);
-  const mensagem = mensagemPedido(itens, cliente);
+  const mensagem = mensagemPedido(itens, cliente, anotacoes);
 
   const remover = (indice: number) => {
     const item = itens[indice];
     if (!item) return;
-    // Era a última peça deste produto: a anotação dela não vale mais. Sai da
-    // Observação (só se a linha ainda está lá como foi preenchida) e do navegador.
+    // Era a última peça deste produto: o que o cliente escreveu sobre ela sai
+    // junto (e volta com o "Desfazer").
     const ultimaDaPeca = !itens.some((outro, i) => i !== indice && outro.produto === item.produto);
-    const anotacoes = ultimaDaPeca ? (lerObservacoes()[item.produto] ?? []) : [];
-    let linhaObservacao: Removido["linhaObservacao"];
-    if (anotacoes.length) {
-      esquecerObservacoes(item.produto);
-      const texto = linhaDaAnotacao(item.produto, anotacoes);
-      const linhas = cliente.observacao.split("\n");
-      const posicao = texto ? linhas.indexOf(texto) : -1;
-      if (posicao >= 0) {
-        linhas.splice(posicao, 1);
-        linhaObservacao = { texto, posicao };
-        setCliente({ ...cliente, observacao: linhas.join("\n") });
-      }
-    }
+    const anotadas = ultimaDaPeca ? (lerObservacoes()[item.produto] ?? []) : [];
+    if (anotadas.length) esquecerObservacoes(item.produto);
     removerItem(indice);
     setSegurando(false);
-    setRemovido((anterior) => ({ item, indice, vez: (anterior?.vez ?? 0) + 1, anotacoes, linhaObservacao }));
+    setRemovido((anterior) => ({ item, indice, vez: (anterior?.vez ?? 0) + 1, anotacoes: anotadas }));
     setAnuncio(`${produtoPorSlug(item.produto)?.nome ?? "Item"} saiu da lista. Use Desfazer para trazer de volta.`);
   };
 
@@ -267,19 +230,17 @@ export default function ListaPedido() {
     if (!removido) return;
     restaurarItem(removido.item, removido.indice);
     for (const texto of removido.anotacoes) anotarObservacao(removido.item.produto, texto);
-    const linha = removido.linhaObservacao;
-    if (linha) {
-      setCliente((c) => {
-        const linhas = c.observacao ? c.observacao.split("\n") : [];
-        if (linhas.includes(linha.texto)) return c;
-        linhas.splice(Math.min(linha.posicao, linhas.length), 0, linha.texto);
-        return { ...c, observacao: linhas.join("\n") };
-      });
-    }
     setFocarChave(chaveDoItem(removido.item));
     setAnuncio(`${produtoPorSlug(removido.item.produto)?.nome ?? "Item"} voltou para a lista.`);
     setRemovido(null);
     setSegurando(false);
+  };
+
+  const apagarNota = (item: ItemPedido, texto: string) => {
+    esquecerObservacao(item.produto, texto);
+    // A lixeira sumiu: o foco vai para o nome da peça.
+    setFocarChave(chaveDoItem(item));
+    setAnuncio(`A observação “${texto}” saiu do pedido.`);
   };
 
   const aviso = (como: "div" | "li") =>
@@ -320,6 +281,8 @@ export default function ListaPedido() {
         item={item}
         numero={indice + 1}
         chave={chave}
+        nota={anotacoes[item.produto]}
+        aoApagarNota={(texto) => apagarNota(item, texto)}
         aoMudarQuantidade={(n) => alterarQuantidade(indice, n)}
         aoRemover={() => remover(indice)}
       />,

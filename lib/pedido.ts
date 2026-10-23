@@ -125,19 +125,36 @@ export function __reiniciarPedido() {
 // O pala não tem cor nem medida para escolher no site: o que o cliente
 // escreve em "Conte o que procura" é o que diz qual pala ele quer. A lista
 // guarda só produto, escolhas e quantidade (ItemPedido), então esse texto
-// fica numa chave à parte, por produto, e a página "Seu pedido" o põe no
-// campo Observação. Como a lista, vale só neste navegador e funciona com o
-// armazenamento bloqueado (só não lembra depois).
+// fica numa chave à parte, por produto. A página "Seu pedido" o mostra junto
+// do item e o manda dentro dele na mensagem (useObservacoes acompanha também
+// o que muda em outra aba). Como a lista, vale só neste navegador e funciona
+// com o armazenamento bloqueado (só não lembra depois).
 
 const CHAVE_OBSERVACOES = "republicasul:observacoes:v1";
 const LIMITE_TEXTO_ANOTACAO = 400;
 const LIMITE_ANOTACOES_POR_PECA = 10;
 
-let anotacoes: Record<string, string[]> = {};
+const SEM_ANOTACOES: Record<string, string[]> = {};
+
+let anotacoes: Record<string, string[]> = SEM_ANOTACOES;
 let anotacoesCarregadas = false;
+let ouvindoOutrasAbas = false;
+const ouvintesAnotacoes = new Set<() => void>();
+
+/** A mudança veio das anotações (ou do armazenamento todo limpo) em outra aba? */
+const mudouAnotacoes = (e: StorageEvent) => e.key === CHAVE_OBSERVACOES || e.key === null;
 
 function carregarAnotacoes() {
-  if (anotacoesCarregadas || typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
+  if (!ouvindoOutrasAbas) {
+    ouvindoOutrasAbas = true;
+    // Outra aba mexeu nas anotações: a próxima leitura busca de novo, para
+    // esta aba não mostrar nem gravar por cima uma cópia velha.
+    window.addEventListener("storage", (e) => {
+      if (mudouAnotacoes(e)) anotacoesCarregadas = false;
+    });
+  }
+  if (anotacoesCarregadas) return;
   anotacoesCarregadas = true;
   try {
     const bruto = window.localStorage.getItem(CHAVE_OBSERVACOES);
@@ -161,6 +178,7 @@ function salvarAnotacoes() {
   } catch {
     // Armazenamento indisponível: a anotação vale só para esta visita.
   }
+  ouvintesAnotacoes.forEach((ouvir) => ouvir());
 }
 
 /**
@@ -183,6 +201,27 @@ export function lerObservacoes(): Record<string, string[]> {
   return anotacoes;
 }
 
+function assinarAnotacoes(ouvir: () => void) {
+  carregarAnotacoes();
+  ouvintesAnotacoes.add(ouvir);
+  const aoMudarEmOutraAba = (e: StorageEvent) => {
+    if (!mudouAnotacoes(e)) return;
+    anotacoesCarregadas = false;
+    ouvir();
+  };
+  window.addEventListener("storage", aoMudarEmOutraAba);
+  return () => {
+    ouvintesAnotacoes.delete(ouvir);
+    window.removeEventListener("storage", aoMudarEmOutraAba);
+  };
+}
+
+// Hook para componentes: as anotações por produto, re-renderizando a cada
+// mudança (desta aba ou de outra). No servidor, nenhuma.
+export function useObservacoes(): Record<string, string[]> {
+  return useSyncExternalStore(assinarAnotacoes, lerObservacoes, () => SEM_ANOTACOES);
+}
+
 /** Apaga as anotações de uma peça, ou todas quando não recebe produto. */
 export function esquecerObservacoes(produto?: string) {
   carregarAnotacoes();
@@ -195,8 +234,19 @@ export function esquecerObservacoes(produto?: string) {
   salvarAnotacoes();
 }
 
+/** Apaga uma só anotação de uma peça (a que o cliente tirou na lista). */
+export function esquecerObservacao(produto: string, texto: string) {
+  carregarAnotacoes();
+  const atuais = anotacoes[produto];
+  if (!atuais?.includes(texto)) return;
+  const resto = { ...anotacoes, [produto]: atuais.filter((t) => t !== texto) };
+  if (!resto[produto].length) delete resto[produto];
+  anotacoes = resto;
+  salvarAnotacoes();
+}
+
 // Só para testes: volta ao estado inicial das anotações.
 export function __reiniciarObservacoes() {
-  anotacoes = {};
+  anotacoes = SEM_ANOTACOES;
   anotacoesCarregadas = false;
 }

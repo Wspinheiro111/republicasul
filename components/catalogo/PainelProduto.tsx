@@ -21,7 +21,7 @@
  *
  * Peça sem opções (o pala): o "Conte o que procura" é o que diz qual pala o
  * cliente quer. Ao adicionar, o texto fica guardado (anotarObservacao) e a
- * página "Seu pedido" o põe na Observação.
+ * página "Seu pedido" o mostra junto do pala e o manda dentro dele na mensagem.
  *
  * As escolhas vão para a URL (?cor-1=azul&medida=especial) com
  * history.replaceState, e são lidas da URL ao abrir: dá para mandar o link de
@@ -167,7 +167,7 @@ export default function PainelProduto({ produto, topo }: PainelProdutoProps) {
       <p id={idAjudaObservacao} className="mt-2 text-[0.92rem] text-tinta/75">
         {temOpcoes
           ? "Vai junto na mensagem quando você toca em Pedir agora no WhatsApp."
-          : "Vai junto na mensagem do Pedir agora no WhatsApp e, se você adicionar ao pedido, na observação da lista."}
+          : "Vai junto na mensagem do Pedir agora no WhatsApp e, se você adicionar ao pedido, junto com o pala na lista."}
       </p>
     </>
   );
@@ -300,7 +300,7 @@ export default function PainelProduto({ produto, topo }: PainelProdutoProps) {
                   <p className="m-0 mt-1 text-tinta/80">
                     {temOpcoes
                       ? "A observação não fica na lista: repita quando mandar o pedido."
-                      : "O que você escreveu vai na observação do seu pedido."}
+                      : "O que você escreveu vai junto com o pala no seu pedido."}
                   </p>
                 )}
                 <Link

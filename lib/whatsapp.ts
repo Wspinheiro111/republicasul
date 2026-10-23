@@ -33,13 +33,15 @@ export function descreverEscolhas(produto: Produto, escolhas: Record<string, str
     .join(" · ");
 }
 
-function linhaItem(item: ItemPedido, indice: number): string[] {
+// nota: o que o cliente escreveu sobre a peça (o "Conte o que procura" do pala).
+function linhaItem(item: ItemPedido, indice: number, nota?: string[]): string[] {
   const produto = produtoPorSlug(item.produto);
   if (!produto) return [];
   const linhas = [`${indice}) ${produto.nome}`];
   const escolhas = descreverEscolhas(produto, item.escolhas);
   if (escolhas) linhas.push(`   ${escolhas}`);
   linhas.push(`   Quantidade: ${item.quantidade}`);
+  if (nota?.length) linhas.push(`   Observação: ${nota.join("; ")}`);
   return linhas;
 }
 
@@ -65,10 +67,11 @@ export function mensagemProduto(item: ItemPedido): string {
   ].join("\n");
 }
 
-// Pedido com vários itens (página "Seu pedido").
-export function mensagemPedido(itens: ItemPedido[], cliente?: DadosCliente): string {
+// Pedido com vários itens (página "Seu pedido"). anotacoes: o que o cliente
+// escreveu por produto (lib/pedido), que vai dentro do item.
+export function mensagemPedido(itens: ItemPedido[], cliente?: DadosCliente, anotacoes?: Record<string, string[]>): string {
   const validos = itens.filter((i) => produtoPorSlug(i.produto) && i.quantidade > 0);
-  const corpo = validos.flatMap((item, i) => linhaItem(item, i + 1));
+  const corpo = validos.flatMap((item, i) => linhaItem(item, i + 1, anotacoes?.[item.produto]));
   const total = validos.reduce((soma, i) => soma + i.quantidade, 0);
   return [
     "Olá, Republicasul! Montei este pedido no site:",

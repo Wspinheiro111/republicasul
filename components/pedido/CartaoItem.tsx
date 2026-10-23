@@ -7,7 +7,9 @@
  *     aoMudarQuantidade={(n) => alterarQuantidade(0, n)} aoRemover={() => ...} />
  *
  * Miniatura nas cores escolhidas, número (o mesmo da mensagem do WhatsApp),
- * nome com link para o produto, escolhas em texto, quantidade e "Remover".
+ * nome com link para o produto, escolhas em texto, o que o cliente escreveu
+ * sobre a peça (nota, o "Conte o que procura" do pala, cada uma com a lixeira
+ * para apagar), quantidade e "Remover".
  */
 
 import Link from "next/link";
@@ -22,11 +24,15 @@ export type CartaoItemProps = {
   item: ItemPedido;
   numero: number;
   chave: string;
+  /** O que o cliente escreveu sobre a peça; vai dentro do item na mensagem. */
+  nota?: string[];
+  /** Tira uma das notas (o cliente mudou de ideia sobre o que escreveu). */
+  aoApagarNota?: (texto: string) => void;
   aoMudarQuantidade: (quantidade: number) => void;
   aoRemover: () => void;
 };
 
-export default function CartaoItem({ item, numero, chave, aoMudarQuantidade, aoRemover }: CartaoItemProps) {
+export default function CartaoItem({ item, numero, chave, nota, aoApagarNota, aoMudarQuantidade, aoRemover }: CartaoItemProps) {
   const produto = produtoPorSlug(item.produto);
   if (!produto) return null;
   const descricao = descreverEscolhas(produto, item.escolhas);
@@ -64,6 +70,28 @@ export default function CartaoItem({ item, numero, chave, aoMudarQuantidade, aoR
               <li key={parte}>{parte}</li>
             ))}
           </ul>
+        )}
+        {nota && nota.length > 0 && (
+          <div className="mt-1 text-[0.95rem] leading-snug text-tinta/80" data-testid="nota-item">
+            <p className="m-0">Observação:</p>
+            <ul className="m-0 list-none p-0">
+              {nota.map((texto) => (
+                <li key={texto} className="flex items-center gap-1 text-tinta">
+                  <span className="min-w-0 break-words">{texto}</span>
+                  {aoApagarNota && (
+                    <button
+                      type="button"
+                      onClick={() => aoApagarNota(texto)}
+                      aria-label={`Apagar a observação “${texto}”`}
+                      className="-my-2.5 inline-grid h-11 w-11 shrink-0 place-items-center rounded-full text-tinta/70 transition-colors hover:bg-maragato/5 hover:text-maragato-escuro"
+                    >
+                      <IconeLixeira className="h-4 w-4" />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
 

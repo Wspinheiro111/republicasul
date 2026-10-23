@@ -275,8 +275,8 @@ describe("PainelProduto", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Adicionar ao pedido" }));
     expect(lerItens()).toEqual([{ produto: "pala", escolhas: {}, quantidade: 2 }]);
-    // O texto não se perde: fica guardado para a Observação da página do pedido.
-    expect(screen.getByRole("status")).toHaveTextContent("O que você escreveu vai na observação do seu pedido.");
+    // O texto não se perde: fica guardado e vai junto com o pala na página do pedido.
+    expect(screen.getByRole("status")).toHaveTextContent("O que você escreveu vai junto com o pala no seu pedido.");
     expect(lerObservacoes()).toEqual({ pala: ["Pala marrom com listras"] });
 
     // Outro pala, com outro texto: o aviso fala em palas na lista (não "desta escolha").

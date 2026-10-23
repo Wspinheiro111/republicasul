@@ -428,48 +428,124 @@ describe("ListaPedido: celular e anotações", () => {
     expect(screen.queryByRole("region", { name: "Envio rápido do pedido" })).toBeNull();
   });
 
-  it("o que foi escrito no pala vem na Observação; anotação de peça que saiu é esquecida", () => {
+  // Outra aba grava no armazenamento e o navegador avisa esta com o evento "storage".
+  function outraAba(chave: "pedido" | "observacoes", valor: unknown) {
+    const nome = `republicasul:${chave}:v1`;
+    window.localStorage.setItem(nome, JSON.stringify(valor));
+    act(() => {
+      window.dispatchEvent(new StorageEvent("storage", { key: nome }));
+    });
+  }
+  const itemMaragato = { produto: maragato.slug, escolhas: { medida: "padrao" }, quantidade: 1 };
+  const itemPala = { produto: "pala", escolhas: {}, quantidade: 1 };
+  const notaDoPala = () => screen.queryByTestId("nota-item");
+  const notasDoPala = () => within(screen.getByTestId("nota-item")).getAllByRole("listitem").map((li) => li.textContent);
+
+  it("o que foi escrito no pala aparece no item e vai dentro dele na mensagem; anotação de peça que saiu é esquecida", () => {
     adicionarItem({ produto: "pala", escolhas: {}, quantidade: 2 });
     anotarObservacao("pala", "pala crioulo marrom");
     anotarObservacao("pala", "pala preto");
     anotarObservacao(maragato.slug, "não está mais na lista");
     render(<ListaPedido />);
-    expect(screen.getByLabelText("Observação")).toHaveValue("Pala: pala crioulo marrom; pala preto");
-    expect(mensagemDoLink(linkWhats("pedido"))).toContain("Observação: Pala: pala crioulo marrom; pala preto");
+    expect(notaDoPala()).toHaveTextContent(/^Observação:/);
+    expect(notasDoPala()).toEqual(["pala crioulo marrom", "pala preto"]);
+    // O campo Observação é só do cliente.
+    expect(screen.getByLabelText("Observação")).toHaveValue("");
+    expect(mensagemDoLink(linkWhats("pedido"))).toContain("1) Pala\n   Quantidade: 2\n   Observação: pala crioulo marrom; pala preto\n");
     expect(lerObservacoes()).toEqual({ pala: ["pala crioulo marrom", "pala preto"] });
   });
 
-  it("remover o pala tira a anotação dele da Observação e do navegador; Desfazer devolve as duas", () => {
-    adicionarItem({ produto: maragato.slug, escolhas: { medida: "padrao" }, quantidade: 1 });
-    adicionarItem({ produto: "pala", escolhas: {}, quantidade: 1 });
+  it("remover o pala tira o que foi escrito dele da mensagem e do navegador; Desfazer devolve", () => {
+    adicionarItem(itemMaragato);
+    adicionarItem(itemPala);
     anotarObservacao("pala", "pala preto");
     render(<ListaPedido />);
     const observacao = screen.getByLabelText("Observação");
-    expect(observacao).toHaveValue("Pala: pala preto");
-    // O cliente escreveu mais uma linha embaixo: ela fica.
-    fireEvent.change(observacao, { target: { value: "Pala: pala preto\nEntregar em Bagé" } });
+    fireEvent.change(observacao, { target: { value: "Entregar em Bagé" } });
 
     fireEvent.click(screen.getByRole("button", { name: /^Remover Pala/ }));
-    expect(observacao).toHaveValue("Entregar em Bagé");
     expect(mensagemDoLink(linkWhats("pedido"))).not.toContain("pala preto");
     expect(lerObservacoes()).toEqual({});
+    expect(observacao).toHaveValue("Entregar em Bagé");
 
     fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
-    expect(observacao).toHaveValue("Pala: pala preto\nEntregar em Bagé");
-    expect(mensagemDoLink(linkWhats("pedido"))).toContain("Observação: Pala: pala preto");
+    expect(notaDoPala()).toHaveTextContent("pala preto");
+    expect(mensagemDoLink(linkWhats("pedido"))).toContain("   Observação: pala preto\n");
     expect(lerObservacoes()).toEqual({ pala: ["pala preto"] });
+    expect(observacao).toHaveValue("Entregar em Bagé");
   });
 
-  it("remover o pala não mexe na Observação que o cliente reescreveu", () => {
-    adicionarItem({ produto: maragato.slug, escolhas: { medida: "padrao" }, quantidade: 1 });
-    adicionarItem({ produto: "pala", escolhas: {}, quantidade: 1 });
+  it("pala adicionado em outra aba chega com o que foi escrito, em qualquer ordem de gravação", () => {
+    for (const ordem of [["pedido", "observacoes"], ["observacoes", "pedido"]] as const) {
+      window.localStorage.clear();
+      __reiniciarPedido();
+      __reiniciarObservacoes();
+      adicionarItem(itemMaragato);
+      const { unmount } = render(<ListaPedido />);
+      fireEvent.change(screen.getByLabelText("Observação"), { target: { value: "Entregar em Bagé" } });
+      for (const chave of ordem) outraAba(chave, chave === "pedido" ? [itemMaragato, itemPala] : { pala: ["pala preto"] });
+      expect(notaDoPala()).toHaveTextContent("pala preto");
+      const texto = mensagemDoLink(linkWhats("pedido"));
+      expect(texto).toContain("2) Pala\n   Quantidade: 1\n   Observação: pala preto\n");
+      expect(texto).toContain("Observação: Entregar em Bagé");
+      unmount();
+    }
+  });
+
+  it("nova anotação e remoção do pala em outra aba aparecem aqui sem mexer no campo do cliente", () => {
+    adicionarItem(itemMaragato);
+    adicionarItem(itemPala);
     anotarObservacao("pala", "pala preto");
     render(<ListaPedido />);
     const observacao = screen.getByLabelText("Observação");
-    fireEvent.change(observacao, { target: { value: "Quero o pala preto bem grosso" } });
-    fireEvent.click(screen.getByRole("button", { name: /^Remover Pala/ }));
-    expect(observacao).toHaveValue("Quero o pala preto bem grosso");
+    fireEvent.change(observacao, { target: { value: "Quero o preto tamanho G" } });
+
+    outraAba("observacoes", { pala: ["pala preto", "pala branco"] });
+    expect(notasDoPala()).toEqual(["pala preto", "pala branco"]);
+    expect(mensagemDoLink(linkWhats("pedido"))).toContain("   Observação: pala preto; pala branco\n");
+
+    outraAba("observacoes", {});
+    outraAba("pedido", [itemMaragato]);
+    expect(screen.queryByRole("button", { name: /^Remover Pala/ })).toBeNull();
+    expect(mensagemDoLink(linkWhats("pedido"))).not.toContain("pala preto");
+    expect(observacao).toHaveValue("Quero o preto tamanho G");
+  });
+
+  it("a lixeira apaga só aquela anotação, da tela, da mensagem e do navegador", () => {
+    adicionarItem(itemMaragato);
+    adicionarItem(itemPala);
+    anotarObservacao("pala", "pala preto");
+    anotarObservacao("pala", "pala branco");
+    render(<ListaPedido />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Apagar a observação “pala preto”" }));
+    expect(notasDoPala()).toEqual(["pala branco"]);
+    expect(lerObservacoes()).toEqual({ pala: ["pala branco"] });
+    expect(mensagemDoLink(linkWhats("pedido"))).toContain("2) Pala\n   Quantidade: 1\n   Observação: pala branco\n");
+    expect(document.activeElement?.tagName).toBe("A");
+    expect(document.activeElement).toHaveTextContent("Pala");
+    expect(screen.getByRole("status")).toHaveTextContent("A observação “pala preto” saiu do pedido.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Apagar a observação “pala branco”" }));
+    expect(notaDoPala()).toBeNull();
     expect(lerObservacoes()).toEqual({});
+    expect(mensagemDoLink(linkWhats("pedido"))).not.toContain("   Observação:");
+    expect(screen.getByRole("button", { name: /^Remover Pala/ })).toBeInTheDocument();
+  });
+
+  it("Desfazer depois de outra aba devolver o pala não repete o que foi escrito", () => {
+    adicionarItem(itemMaragato);
+    adicionarItem(itemPala);
+    anotarObservacao("pala", "pala preto");
+    render(<ListaPedido />);
+    fireEvent.click(screen.getByRole("button", { name: /^Remover Pala/ }));
+    outraAba("pedido", [itemMaragato, itemPala]);
+    outraAba("observacoes", { pala: ["pala branco"] });
+    fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    expect(lerObservacoes()).toEqual({ pala: ["pala branco", "pala preto"] });
+    const texto = mensagemDoLink(linkWhats("pedido"));
+    expect(texto.match(/pala branco/g)).toHaveLength(1);
+    expect(texto).toContain("   Observação: pala branco; pala preto\n");
   });
 });
 
