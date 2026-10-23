@@ -23,7 +23,7 @@ import {
   type Opcao,
   type Produto,
 } from "../../content/catalogo";
-import { caminhoComEscolhas } from "../catalogo/funcoes";
+import { caminhoComEscolhas, semCorRepetida } from "../catalogo/funcoes";
 import LencoArte from "../LencoArte";
 import { caminhoDaCombinacao, MODELO_TRADICIONAL, modeloPorId } from "../montador/combinacao";
 import SeletorOpcoes from "../SeletorOpcoes";
@@ -106,7 +106,8 @@ export default function MiniMontador({ className }: { className?: string }) {
   const aoMudar = (opcaoId: string, valorId: string) => {
     if (opcaoId === "padrao") setEstilo(valorId);
     else if (opcaoId === "cor-liso") setLiso(valorId);
-    else setEscolhas((e) => ({ ...e, [produto.slug]: { ...escolhasProduto, [opcaoId]: valorId } }));
+    // Como na página do lenço e no montador: a cor escolhida fica e a outra anda (semCorRepetida).
+    else setEscolhas((e) => ({ ...e, [produto.slug]: semCorRepetida(produto, { ...escolhasProduto, [opcaoId]: valorId }, opcaoId) }));
   };
 
   return (

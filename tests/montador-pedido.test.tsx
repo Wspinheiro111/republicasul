@@ -438,6 +438,39 @@ describe("ListaPedido: celular e anotações", () => {
     expect(mensagemDoLink(linkWhats("pedido"))).toContain("Observação: Pala: pala crioulo marrom; pala preto");
     expect(lerObservacoes()).toEqual({ pala: ["pala crioulo marrom", "pala preto"] });
   });
+
+  it("remover o pala tira a anotação dele da Observação e do navegador; Desfazer devolve as duas", () => {
+    adicionarItem({ produto: maragato.slug, escolhas: { medida: "padrao" }, quantidade: 1 });
+    adicionarItem({ produto: "pala", escolhas: {}, quantidade: 1 });
+    anotarObservacao("pala", "pala preto");
+    render(<ListaPedido />);
+    const observacao = screen.getByLabelText("Observação");
+    expect(observacao).toHaveValue("Pala: pala preto");
+    // O cliente escreveu mais uma linha embaixo: ela fica.
+    fireEvent.change(observacao, { target: { value: "Pala: pala preto\nEntregar em Bagé" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Remover Pala/ }));
+    expect(observacao).toHaveValue("Entregar em Bagé");
+    expect(mensagemDoLink(linkWhats("pedido"))).not.toContain("pala preto");
+    expect(lerObservacoes()).toEqual({});
+
+    fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    expect(observacao).toHaveValue("Pala: pala preto\nEntregar em Bagé");
+    expect(mensagemDoLink(linkWhats("pedido"))).toContain("Observação: Pala: pala preto");
+    expect(lerObservacoes()).toEqual({ pala: ["pala preto"] });
+  });
+
+  it("remover o pala não mexe na Observação que o cliente reescreveu", () => {
+    adicionarItem({ produto: maragato.slug, escolhas: { medida: "padrao" }, quantidade: 1 });
+    adicionarItem({ produto: "pala", escolhas: {}, quantidade: 1 });
+    anotarObservacao("pala", "pala preto");
+    render(<ListaPedido />);
+    const observacao = screen.getByLabelText("Observação");
+    fireEvent.change(observacao, { target: { value: "Quero o pala preto bem grosso" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Remover Pala/ }));
+    expect(observacao).toHaveValue("Quero o pala preto bem grosso");
+    expect(lerObservacoes()).toEqual({});
+  });
 });
 
 describe("funções do pedido", () => {

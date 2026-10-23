@@ -323,6 +323,17 @@ describe("Mini-montador", () => {
     expect(hrefSemBarra(screen.getByRole("link", { name: "Ver este lenço" }))).toBe("/produto/lenco-carijo-duas-cores?cor-1=vermelho&cor-2=verde");
   });
 
+  it("as duas cores nunca ficam iguais: a escolhida fica e a outra anda, também nos links", () => {
+    render(<MiniMontador />);
+    const primeira = screen.getByRole("group", { name: /Primeira cor/ });
+    fireEvent.click(within(primeira).getByRole("radio", { name: "Azul" }));
+    expect(within(primeira).getByRole("radio", { name: "Azul" })).toBeChecked();
+    expect(within(screen.getByRole("group", { name: /Segunda cor/ })).getByRole("radio", { name: "Vermelho" })).toBeChecked();
+    expect(legenda()).toHaveTextContent("Azul e vermelho");
+    expect(hrefSemBarra(screen.getByRole("link", { name: "Abrir o montador" }))).toBe("/montador?modelo=carijo-duas-cores&cor-1=azul&cor-2=vermelho");
+    expect(hrefSemBarra(screen.getByRole("link", { name: "Ver este lenço" }))).toBe("/produto/lenco-carijo-duas-cores?cor-1=azul&cor-2=vermelho");
+  });
+
   it("no liso, o montador abre no tradicional da cor escolhida", () => {
     render(<MiniMontador />);
     fireEvent.click(screen.getByRole("radio", { name: "Liso" }));

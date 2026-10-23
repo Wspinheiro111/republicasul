@@ -15,7 +15,8 @@
  * - No celular, uma barra fixa "Enviar pedido (n peças)" (a BarraCelular some
  *   nesta página), para o envio não ficar só no fim da página.
  * - O que o cliente escreveu no "Conte o que procura" do pala (anotações de
- *   lib/pedido) já vem no campo Observação.
+ *   lib/pedido) já vem no campo Observação. Remover a peça tira a linha dela
+ *   da Observação e esquece a anotação; "Desfazer" devolve as duas.
  * - Lista vazia: EstadoVazio.
  */
 
@@ -26,6 +27,7 @@ import { produtoPorSlug } from "../../content/catalogo";
 import { contato } from "../../content/site";
 import {
   alterarQuantidade,
+  anotarObservacao,
   esquecerObservacoes,
   lerItens,
   lerObservacoes,
@@ -48,7 +50,24 @@ export const TEMPO_DESFAZER = 9000;
 const LIMITE_NOME = 80;
 const LIMITE_OBSERVACAO = 500;
 
-type Removido = { item: ItemPedido; indice: number; vez: number };
+/**
+ * O item que acabou de sair, para o "Desfazer". Se era a última peça daquele
+ * produto, leva junto as anotações dele e, se a Observação tinha a linha
+ * delas, a linha e a posição de onde saiu.
+ */
+type Removido = {
+  item: ItemPedido;
+  indice: number;
+  vez: number;
+  anotacoes: string[];
+  linhaObservacao?: { texto: string; posicao: number };
+};
+
+/** "Pala: crioulo marrom; preto": a linha de uma peça no campo Observação. */
+function linhaDaAnotacao(slug: string, textos: string[]): string {
+  const produto = produtoPorSlug(slug);
+  return produto && textos.length ? `${produto.nome}: ${textos.join("; ")}` : "";
+}
 
 /**
  * Observação inicial a partir das anotações das peças que estão na lista
@@ -64,8 +83,8 @@ function observacaoDasAnotacoes(itens: ItemPedido[]): string {
       esquecerObservacoes(slug);
       continue;
     }
-    const produto = produtoPorSlug(slug);
-    if (produto && textos.length) linhas.push(`${produto.nome}: ${textos.join("; ")}`);
+    const linha = linhaDaAnotacao(slug, textos);
+    if (linha) linhas.push(linha);
   }
   return linhas.join("\n");
 }
@@ -222,15 +241,41 @@ export default function ListaPedido() {
   const remover = (indice: number) => {
     const item = itens[indice];
     if (!item) return;
+    // Era a última peça deste produto: a anotação dela não vale mais. Sai da
+    // Observação (só se a linha ainda está lá como foi preenchida) e do navegador.
+    const ultimaDaPeca = !itens.some((outro, i) => i !== indice && outro.produto === item.produto);
+    const anotacoes = ultimaDaPeca ? (lerObservacoes()[item.produto] ?? []) : [];
+    let linhaObservacao: Removido["linhaObservacao"];
+    if (anotacoes.length) {
+      esquecerObservacoes(item.produto);
+      const texto = linhaDaAnotacao(item.produto, anotacoes);
+      const linhas = cliente.observacao.split("\n");
+      const posicao = texto ? linhas.indexOf(texto) : -1;
+      if (posicao >= 0) {
+        linhas.splice(posicao, 1);
+        linhaObservacao = { texto, posicao };
+        setCliente({ ...cliente, observacao: linhas.join("\n") });
+      }
+    }
     removerItem(indice);
     setSegurando(false);
-    setRemovido((anterior) => ({ item, indice, vez: (anterior?.vez ?? 0) + 1 }));
+    setRemovido((anterior) => ({ item, indice, vez: (anterior?.vez ?? 0) + 1, anotacoes, linhaObservacao }));
     setAnuncio(`${produtoPorSlug(item.produto)?.nome ?? "Item"} saiu da lista. Use Desfazer para trazer de volta.`);
   };
 
   const desfazer = () => {
     if (!removido) return;
     restaurarItem(removido.item, removido.indice);
+    for (const texto of removido.anotacoes) anotarObservacao(removido.item.produto, texto);
+    const linha = removido.linhaObservacao;
+    if (linha) {
+      setCliente((c) => {
+        const linhas = c.observacao ? c.observacao.split("\n") : [];
+        if (linhas.includes(linha.texto)) return c;
+        linhas.splice(Math.min(linha.posicao, linhas.length), 0, linha.texto);
+        return { ...c, observacao: linhas.join("\n") };
+      });
+    }
     setFocarChave(chaveDoItem(removido.item));
     setAnuncio(`${produtoPorSlug(removido.item.produto)?.nome ?? "Item"} voltou para a lista.`);
     setRemovido(null);
