@@ -283,3 +283,30 @@ test("no celular, o pedido tem o envio sempre à mão", async ({ page }) => {
   const href = (await envio.getAttribute("href")) ?? "";
   expect(decodeURIComponent(href)).toContain("Total de peças: 3");
 });
+
+test("cada lixeira das observações do pala apaga só a sua, sem invadir a vizinha", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "republicasul:pedido:v1",
+      JSON.stringify([
+        { produto: "pala", escolhas: {}, quantidade: 1 },
+        { produto: "lenco-tradicional-maragato", escolhas: { medida: "padrao" }, quantidade: 1 },
+      ]),
+    );
+    window.localStorage.setItem("republicasul:observacoes:v1", JSON.stringify({ pala: ["crioulo", "preto", "azul"] }));
+  });
+  await abrir(page, "/pedido/");
+  const lixeiras = page.getByRole("button", { name: /^Apagar a observação/ });
+  await expect(lixeiras).toHaveCount(3);
+  const caixas = [];
+  for (const lixeira of await lixeiras.all()) caixas.push((await lixeira.boundingBox())!);
+  for (const [i, caixa] of caixas.entries()) {
+    expect(caixa.width, `lixeira ${i + 1}`).toBeGreaterThanOrEqual(44);
+    expect(caixa.height, `lixeira ${i + 1}`).toBeGreaterThanOrEqual(44);
+    if (i > 0) expect(caixa.y, `lixeira ${i + 1} começa depois da anterior`).toBeGreaterThanOrEqual(caixas[i - 1].y + caixas[i - 1].height - 0.5);
+  }
+  // Toque na beirada de baixo do ícone da primeira: apaga a primeira, não a segunda.
+  const icone = (await lixeiras.first().locator("svg").boundingBox())!;
+  await page.mouse.click(icone.x + icone.width / 2, icone.y + icone.height - 1);
+  await expect(page.getByTestId("nota-item").getByRole("listitem")).toHaveText(["preto", "azul"]);
+});
