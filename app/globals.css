@@ -1,0 +1,499 @@
+@import "tailwindcss";
+
+/*
+ * Base visual "galpão premium" da Republicasul.
+ *
+ * Tokens: use sempre pela variável (var(--couro)) ou pelas utilidades do
+ * Tailwind geradas no @theme abaixo (bg-couro, text-creme, border-ouro,
+ * font-titulo, font-rotulo...).
+ *
+ * Contraste (WCAG AA) já conferido:
+ * - creme sobre couro 15.6:1 · tinta sobre creme 15.4:1
+ * - ouro sobre couro 7.6:1 (texto ok) · ouro sobre creme 2.1:1 (SÓ enfeite;
+ *   para texto dourado sobre creme use --ouro-escuro, 5.3:1)
+ * - maragato sobre couro 2.6:1 (não usar como texto no escuro; no claro 5.9:1)
+ * - branco sobre --whats 4.7:1 (o #1f8f4e do briefing dava 4.1:1 e foi
+ *   escurecido um pouco para passar no AA com texto normal)
+ */
+
+:root {
+  --couro: #1b130e;
+  --couro-2: #2a1d15;
+  --madeira: #4a3324;
+  --creme: #f3ecdf;
+  --creme-2: #e6dccb;
+  --tinta: #1a1512;
+  --maragato: #b3121b;
+  --maragato-escuro: #8c0e15;
+  --ouro: #c9a14a;
+  --ouro-escuro: #7a5c1a;
+  --campo: #2f5d3a;
+  --whats: #1b8448;
+  --whats-escuro: #146637;
+
+  /* Cor do anel de foco: dourado no escuro, dourado queimado no claro. */
+  --foco: var(--ouro);
+  /* Cor dos fios da textura .trama (claro sobre escuro por padrão). */
+  --fio: rgb(243 236 223 / 0.035);
+  --fio-forte: rgb(243 236 223 / 0.055);
+
+  /* Altura do cabeçalho fixo (usada no scroll-margin e em layouts). */
+  --altura-cabecalho: 4rem;
+  /* Altura da barra inferior do celular, sem a área segura. */
+  --altura-barra-celular: 4.25rem;
+
+  --raio: 4px;
+  --raio-pequeno: 2px;
+  --raio-grande: 6px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --altura-cabecalho: 4.5rem;
+  }
+}
+
+@theme inline {
+  --color-couro: var(--couro);
+  --color-couro-2: var(--couro-2);
+  --color-madeira: var(--madeira);
+  --color-creme: var(--creme);
+  --color-creme-2: var(--creme-2);
+  --color-tinta: var(--tinta);
+  --color-maragato: var(--maragato);
+  --color-maragato-escuro: var(--maragato-escuro);
+  --color-ouro: var(--ouro);
+  --color-ouro-escuro: var(--ouro-escuro);
+  --color-campo: var(--campo);
+  --color-whats: var(--whats);
+  --color-whats-escuro: var(--whats-escuro);
+
+  --font-titulo: var(--fonte-titulo), Georgia, "Times New Roman", serif;
+  --font-texto: var(--fonte-texto), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-rotulo: var(--fonte-rotulo), "Arial Narrow", system-ui, sans-serif;
+
+  --radius-pano: var(--raio);
+}
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    background: var(--couro);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--couro);
+    color: var(--creme);
+    font-family: var(--font-texto);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;
+  }
+
+  /* O conteúdo das páginas nasce sobre creme; cada seção escolhe o seu fundo. */
+  main {
+    display: block;
+    background: var(--creme);
+    color: var(--tinta);
+    --foco: var(--ouro-escuro);
+    --fio: rgb(26 21 18 / 0.035);
+    --fio-forte: rgb(26 21 18 / 0.05);
+  }
+
+  main:focus {
+    outline: none;
+  }
+
+  /*
+   * Compensa o cabeçalho fixo em âncoras (#id) e no foco do teclado dentro
+   * do conteúdo. Usamos scroll-margin nos alvos, e NÃO scroll-padding no
+   * html: com scroll-padding, focar um item do próprio cabeçalho fixo fazia
+   * a página pular centenas de pixels para cima.
+   */
+  [id],
+  main * {
+    scroll-margin-top: calc(var(--altura-cabecalho) + 1.25rem);
+  }
+  @media (max-width: 767px) {
+    main * {
+      scroll-margin-bottom: calc(var(--altura-barra-celular) + env(safe-area-inset-bottom) + 0.75rem);
+    }
+  }
+  header [id],
+  #menu-celular {
+    scroll-margin: 0;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-titulo);
+    text-wrap: balance;
+    font-optical-sizing: auto;
+  }
+
+  h1 {
+    font-size: clamp(2.6rem, 6.5vw, 5.25rem);
+    line-height: 1.02;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.08;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+  }
+
+  h3 {
+    font-size: 1.35rem;
+    line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+
+  p,
+  li,
+  dd,
+  figcaption {
+    text-wrap: pretty;
+  }
+
+  a {
+    color: inherit;
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--foco);
+    outline-offset: 3px;
+    border-radius: var(--raio-pequeno);
+  }
+
+  ::selection {
+    background: var(--maragato);
+    color: #fff;
+  }
+
+  /* Números de pedido e quantidades alinhados. */
+  input[type="number"] {
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Componentes utilitários                                              */
+/* ------------------------------------------------------------------ */
+
+@layer components {
+  /* Escala tipográfica em classe, para quando a tag não é o h1/h2/h3. */
+  .titulo-1 {
+    font-family: var(--font-titulo);
+    font-size: clamp(2.6rem, 6.5vw, 5.25rem);
+    line-height: 1.02;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  .titulo-2 {
+    font-family: var(--font-titulo);
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.08;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  .titulo-3 {
+    font-family: var(--font-titulo);
+    font-size: 1.35rem;
+    line-height: 1.25;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+  .texto-grande {
+    font-size: clamp(1.125rem, 1.6vw, 1.3rem);
+    line-height: 1.55;
+  }
+
+  /* Rótulo de sinalização: Barlow Condensed em caixa alta. */
+  .rotulo {
+    font-family: var(--font-rotulo);
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* Seções: alternar couro escuro e creme. */
+  .secao-escura {
+    background-color: var(--couro);
+    color: var(--creme);
+    --foco: var(--ouro);
+    --fio: rgb(243 236 223 / 0.035);
+    --fio-forte: rgb(243 236 223 / 0.055);
+  }
+  .secao-escura-2 {
+    background-color: var(--couro-2);
+    color: var(--creme);
+    --foco: var(--ouro);
+    --fio: rgb(243 236 223 / 0.04);
+    --fio-forte: rgb(243 236 223 / 0.06);
+  }
+  .secao-clara {
+    background-color: var(--creme);
+    color: var(--tinta);
+    --foco: var(--ouro-escuro);
+    --fio: rgb(26 21 18 / 0.035);
+    --fio-forte: rgb(26 21 18 / 0.05);
+  }
+  .secao-clara-2 {
+    background-color: var(--creme-2);
+    color: var(--tinta);
+    --foco: var(--ouro-escuro);
+    --fio: rgb(26 21 18 / 0.04);
+    --fio-forte: rgb(26 21 18 / 0.055);
+  }
+
+  /*
+   * Trama: fios cruzados finos, como o tecido visto de perto. Só desenha a
+   * textura (background-image); a cor de fundo vem de .secao-escura,
+   * .secao-clara ou bg-*. A cor do fio se ajusta sozinha ao fundo.
+   */
+  .trama {
+    background-image:
+      repeating-linear-gradient(0deg, var(--fio-forte) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(90deg, var(--fio) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(45deg, var(--fio) 0 1px, transparent 1px 9px),
+      radial-gradient(120% 80% at 50% 0%, rgb(201 161 74 / 0.07), transparent 60%);
+  }
+
+  /*
+   * Linha de ponto: divisor tracejado dourado, como uma costura.
+   * Use em <hr className="linha-de-ponto" /> ou num <div aria-hidden>.
+   */
+  .linha-de-ponto {
+    display: block;
+    width: 100%;
+    height: 2px;
+    border: 0;
+    margin: 0;
+    background-image: linear-gradient(90deg, var(--ouro) 0 9px, transparent 9px 16px);
+    background-size: 16px 2px;
+    background-repeat: repeat-x;
+    background-position: left center;
+    opacity: 0.75;
+  }
+  .linha-de-ponto-vertical {
+    display: block;
+    width: 2px;
+    height: 100%;
+    background-image: linear-gradient(180deg, var(--ouro) 0 9px, transparent 9px 16px);
+    background-size: 2px 16px;
+    background-repeat: repeat-y;
+    opacity: 0.75;
+  }
+
+  /* Costura: borda tracejada por dentro de um cartão, como couro pespontado. */
+  .costura {
+    position: relative;
+  }
+  .costura::after {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border: 1.5px dashed color-mix(in srgb, var(--ouro) 70%, transparent);
+    border-radius: var(--raio-pequeno);
+    pointer-events: none;
+  }
+
+  /* Botões. Alvos de toque com no mínimo 48px de altura. */
+  .botao-acao,
+  .botao-whats,
+  .botao-contorno {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 3rem;
+    padding: 0.7rem 1.4rem;
+    border-radius: var(--raio);
+    font-family: var(--font-rotulo);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      background-color 0.18s ease,
+      color 0.18s ease,
+      border-color 0.18s ease,
+      transform 0.18s ease;
+  }
+  .botao-acao:active,
+  .botao-whats:active,
+  .botao-contorno:active {
+    transform: translateY(1px);
+  }
+  .botao-acao:disabled,
+  .botao-acao[aria-disabled="true"],
+  .botao-contorno:disabled,
+  .botao-contorno[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .botao-acao {
+    background-color: var(--maragato);
+    color: #fff;
+    border: 1px solid var(--maragato);
+    box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.18);
+  }
+  .botao-acao:hover {
+    background-color: var(--maragato-escuro);
+    border-color: var(--maragato-escuro);
+  }
+
+  .botao-whats {
+    background-color: var(--whats);
+    color: #fff;
+    border: 1px solid var(--whats);
+    box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.18);
+  }
+  .botao-whats:hover {
+    background-color: var(--whats-escuro);
+    border-color: var(--whats-escuro);
+  }
+
+  /* Contorno: segue a cor do texto do fundo (creme no escuro, tinta no claro). */
+  .botao-contorno {
+    background-color: transparent;
+    color: currentColor;
+    border: 1.5px solid currentColor;
+  }
+  .botao-contorno:hover {
+    background-color: color-mix(in srgb, currentColor 10%, transparent);
+  }
+
+  .botao-pequeno {
+    min-height: 2.75rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+  }
+
+  /* Texto só para leitores de tela (o Tailwind também tem .sr-only). */
+  .so-leitor {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Link "Pular para o conteúdo": aparece só com o foco do teclado. */
+  .pular-conteudo {
+    position: absolute;
+    left: 1rem;
+    top: 0.75rem;
+    z-index: 100;
+    transform: translateY(-200%);
+    padding: 0.75rem 1.1rem;
+    background: var(--creme);
+    color: var(--tinta);
+    border-radius: var(--raio);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .pular-conteudo:focus {
+    transform: none;
+  }
+
+  /* Recipiente padrão das páginas: 16px de margem no celular. */
+  .conteudo {
+    width: 100%;
+    max-width: 76rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+  @media (min-width: 640px) {
+    .conteudo {
+      padding-inline: 1.5rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .conteudo {
+      padding-inline: 2rem;
+    }
+  }
+}
+
+/* Selo girando devagar (para sozinho com "reduzir movimento"). */
+@keyframes girar-selo {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.selo-girando {
+  animation: girar-selo 48s linear infinite;
+}
+
+/* ------------------------------------------------------------------ */
+/* Movimento reduzido e impressão                                      */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  [data-revelar] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

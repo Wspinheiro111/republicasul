@@ -39,6 +39,7 @@ describe("mensagens do WhatsApp", () => {
     const texto = mensagemProduto({ produto: p.slug, escolhas: { ...escolhasPadrao(p), "cor-2": "branco" }, quantidade: 2 });
     expect(texto).toContain("Lenço carijó duas cores");
     expect(texto).toContain("Primeira cor: Vermelho · Segunda cor: Branco · Medida: Medida padrão");
+    expect(escolhasPadrao(p)).toEqual({ "cor-1": "vermelho", "cor-2": "azul", medida: "padrao" });
     expect(texto).toContain("Quantidade: 2");
   });
 

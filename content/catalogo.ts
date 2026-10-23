@@ -246,9 +246,17 @@ export function produtosDaCategoria(slug: string) {
   return produtos.filter((p) => p.categoria === slug);
 }
 
-// Escolha inicial: o primeiro valor de cada opção.
+// Escolha inicial: o primeiro valor de cada opção. Em opções de cor seguidas
+// (carijó duas cores), cada uma começa numa cor ainda não usada.
 export function escolhasPadrao(produto: Produto): Record<string, string> {
-  return Object.fromEntries(produto.opcoes.map((o) => [o.id, o.valores[0]?.id ?? ""]));
+  const usadas = new Set<string>();
+  return Object.fromEntries(
+    produto.opcoes.map((o) => {
+      const valor = (o.tipo === "cor" && o.valores.find((v) => !usadas.has(v.id))) || o.valores[0];
+      if (o.tipo === "cor" && valor) usadas.add(valor.id);
+      return [o.id, valor?.id ?? ""];
+    }),
+  );
 }
 
 // Cores do desenho a partir das escolhas do cliente (opções de cor, em ordem),
